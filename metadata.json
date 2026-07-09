@@ -1,0 +1,6 @@
+{
+  "name": "Employee Management Portal",
+  "description": "An Enterprise-grade Employee Management Portal featuring full CRUD operations, role-based access control, dynamic forms with validation, real-time analytics, and an integrated interactive unit test suite.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
