@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Building2, 
@@ -25,6 +25,10 @@ import EmployeeFormModal from './components/EmployeeFormModal';
 import LeaveManagerView from './components/LeaveManagerView';
 import AnnouncementsView from './components/AnnouncementsView';
 import TestRunnerView from './components/TestRunnerView';
+import { employeeSeedData } from './data/employees';
+import { leaveRequestSeedData } from './data/leaveRequests';
+import { announcementSeedData } from './data/announcements';
+import { dashboardStatsSeedData } from './data/stats';
 
 export default function App() {
   // Authentication & Session
@@ -35,10 +39,10 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // App Data State
-  const [employees, setEmployees] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [leaveRequests, setLeaveRequests] = useState([]);
-  const [announcements, setAnnouncements] = useState([]);
+  const [employees, setEmployees] = useState(employeeSeedData);
+  const [stats, setStats] = useState(dashboardStatsSeedData);
+  const [leaveRequests, setLeaveRequests] = useState(leaveRequestSeedData);
+  const [announcements, setAnnouncements] = useState(announcementSeedData);
 
   // Directory filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,72 +56,37 @@ export default function App() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
 
-  // Load backend data
-  const fetchData = useCallback(async () => {
-    if (!session) return;
+  // Sync / Reset local state data handler
+  const handleSyncData = () => {
     setIsLoading(true);
-    try {
-      // Fetch stats
-      const statsRes = await fetch('/api/stats');
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setStats(statsData);
-      }
-
-      // Fetch leaves
-      const leavesRes = await fetch('/api/leave-requests');
-      if (leavesRes.ok) {
-        const leavesData = await leavesRes.json();
-        setLeaveRequests(leavesData);
-      }
-
-      // Fetch announcements
-      const annRes = await fetch('/api/announcements');
-      if (annRes.ok) {
-        const annData = await annRes.json();
-        setAnnouncements(annData);
-      }
-    } catch (err) {
-      console.error('Error synchronizing database metrics:', err);
-    } finally {
+    setTimeout(() => {
       setIsLoading(false);
-    }
-  }, [session]);
+    }, 600);
+  };
 
-  const fetchEmployees = useCallback(async () => {
-    if (!session) return;
-    try {
-      // Build filter queries
-      const params = new URLSearchParams({
-        search: searchTerm,
-        department: deptFilter,
-        status: statusFilter,
-        sortField,
-        sortOrder
+  const visibleEmployees = useMemo(() => {
+    return [...employees]
+      .filter((employee) => {
+        const fullName = `${employee.firstName} ${employee.lastName}`.toLowerCase();
+        const matchesSearch = fullName.includes(searchTerm.toLowerCase());
+        const matchesDepartment = deptFilter === 'All' || employee.department === deptFilter;
+        const matchesStatus = statusFilter === 'All' || employee.status === statusFilter;
+        return matchesSearch && matchesDepartment && matchesStatus;
+      })
+      .sort((a, b) => {
+        const direction = sortOrder === 'asc' ? 1 : -1;
+        const aValue = a[sortField] ?? '';
+        const bValue = b[sortField] ?? '';
+        return aValue > bValue ? direction : aValue < bValue ? -direction : 0;
       });
-
-      const empRes = await fetch(`/api/employees?${params.toString()}`);
-      if (empRes.ok) {
-        const empData = await empRes.json();
-        setEmployees(empData);
-      }
-    } catch (err) {
-      console.error('Error fetching employee directory:', err);
-    }
-  }, [session, searchTerm, deptFilter, statusFilter, sortField, sortOrder]);
-
-  // Handle periodic refresh and filters
-  useEffect(() => {
-    if (session) {
-      fetchEmployees();
-    }
-  }, [fetchEmployees, session]);
+  }, [employees, searchTerm, deptFilter, statusFilter, sortField, sortOrder]);
 
   useEffect(() => {
-    if (session) {
-      fetchData();
-    }
-  }, [fetchData, session]);
+    setEmployees(employeeSeedData);
+    setLeaveRequests(leaveRequestSeedData);
+    setAnnouncements(announcementSeedData);
+    setStats(dashboardStatsSeedData);
+  }, []);
 
   // Login Simulator handler
   const handleLogin = (role) => {
@@ -133,10 +102,10 @@ export default function App() {
 
   const handleLogout = () => {
     setSession(null);
-    setEmployees([]);
-    setStats(null);
-    setLeaveRequests([]);
-    setAnnouncements([]);
+    setEmployees(employeeSeedData);
+    setStats(dashboardStatsSeedData);
+    setLeaveRequests(leaveRequestSeedData);
+    setAnnouncements(announcementSeedData);
   };
 
   // CRUD Save Employee Action
@@ -144,29 +113,15 @@ export default function App() {
     if (!session) return false;
     try {
       const isEdit = !!editingEmployee;
-      const url = isEdit ? `/api/employees/${editingEmployee.id}` : '/api/employees';
-      const method = isEdit ? 'PUT' : 'POST';
+      setEmployees((prevEmployees) => {
+        if (isEdit) {
+          return prevEmployees.map((employee) => employee.id === editingEmployee.id ? { ...employee, ...formData } : employee);
+        }
 
-      const payload = {
-        ...formData,
-        actorName: session.username
-      };
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        return [{ ...formData, id: `EMP-${String(prevEmployees.length + 1).padStart(3, '0')}` }, ...prevEmployees];
       });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        alert(errData.error || 'Server validation failed');
-        return false;
-      }
-
-      // Success
-      await fetchEmployees();
-      await fetchData();
+      setEditingEmployee(null);
+      setIsFormOpen(false);
       return true;
     } catch (err) {
       console.error('Failed saving employee profile:', err);
@@ -187,16 +142,7 @@ export default function App() {
     }
 
     try {
-      const res = await fetch(`/api/employees/${id}?actorName=${encodeURIComponent(session.username)}`, {
-        method: 'DELETE'
-      });
-
-      if (res.ok) {
-        await fetchEmployees();
-        await fetchData();
-      } else {
-        alert('Failed terminating employee record.');
-      }
+      setEmployees((prevEmployees) => prevEmployees.filter((employee) => employee.id !== id));
     } catch (err) {
       console.error('Delete operation error:', err);
     }
@@ -206,21 +152,15 @@ export default function App() {
   const handlePostLeave = async (leaveData) => {
     if (!session) return;
     try {
-      const res = await fetch('/api/leave-requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...leaveData,
-          employeeId: session.employeeId
-        })
-      });
+      const newLeaveRequest = {
+        id: `LR-${String(leaveRequests.length + 1).padStart(3, '0')}`,
+        employeeId: session.employeeId,
+        employeeName: session.username,
+        ...leaveData,
+        status: 'Pending'
+      };
 
-      if (res.ok) {
-        await fetchData();
-        await fetchEmployees();
-      } else {
-        alert('Failed filing leave request');
-      }
+      setLeaveRequests((prevLeaveRequests) => [newLeaveRequest, ...prevLeaveRequests]);
     } catch (err) {
       console.error('Leave submit error:', err);
     }
@@ -230,19 +170,9 @@ export default function App() {
   const handleUpdateLeave = async (id, status) => {
     if (!session || session.role === 'Employee') return;
     try {
-      const res = await fetch(`/api/leave-requests/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status,
-          actorName: session.username
-        })
-      });
-
-      if (res.ok) {
-        await fetchData();
-        await fetchEmployees();
-      }
+      setLeaveRequests((prevLeaveRequests) => prevLeaveRequests.map((request) =>
+        request.id === id ? { ...request, status } : request
+      ));
     } catch (err) {
       console.error('Error updating leave status:', err);
     }
@@ -252,18 +182,14 @@ export default function App() {
   const handlePostAnnouncement = async (memoData) => {
     if (!session || session.role === 'Employee') return;
     try {
-      const res = await fetch('/api/announcements', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...memoData,
-          author: session.username
-        })
-      });
+      const newAnnouncement = {
+        id: `ANN-${String(announcements.length + 1).padStart(3, '0')}`,
+        date: new Date().toISOString().slice(0, 10),
+        author: session.username,
+        ...memoData
+      };
 
-      if (res.ok) {
-        await fetchData();
-      }
+      setAnnouncements((prevAnnouncements) => [newAnnouncement, ...prevAnnouncements]);
     } catch (err) {
       console.error('Error posting announcement:', err);
     }
@@ -297,7 +223,7 @@ export default function App() {
       case 'employees':
         return (
           <EmployeeDirectoryView
-            employees={employees}
+            employees={visibleEmployees}
             userRole={session?.role || 'Employee'}
             onAddClick={onAddClick}
             onEditClick={onEditClick}
@@ -497,10 +423,7 @@ export default function App() {
         {/* Header Right Content */}
         <div className="flex items-center gap-4">
           <button
-            onClick={async () => {
-              await fetchData();
-              await fetchEmployees();
-            }}
+            onClick={handleSyncData}
             title="Synchronize Metrics"
             className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer flex items-center gap-1.5"
           >

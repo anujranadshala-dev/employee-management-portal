@@ -21,51 +21,49 @@ The goal is to transform this prototype into a complete employee management syst
 
 ## Recommended Development Phases
 
-### Phase 1 - Backend Foundation
-- Split backend into modular folders
-- Add environment configuration
-- Set up PostgreSQL database
-- Replace in-memory data with persistent storage
-- Add validation and proper error handling
+The best way to build this project is to follow it step by step. First, fully complete the frontend experience using dummy data in the frontend itself, then create the backend separately, and only after that connect the UI to real data and services.
 
-### Phase 2 - Authentication and Authorization
-- Implement user registration and login
-- Add JWT authentication
-- Add refresh token support
-- Introduce Admin, Manager, and Employee roles
-- Protect routes based on permissions
+### Phase 1 - Polish the Frontend Experience
+1. First, finalize the main screens for dashboard, employee directory, leave manager, and announcements.
+2. Next, improve the UI/UX so the application looks complete and professional.
+3. Then, make sure all forms, buttons, filters, and views work smoothly with dummy data stored in the frontend.
+4. After that, refine the navigation and overall user flow.
+5. Finally, ensure the frontend is fully functional and ready for backend integration.
 
-### Phase 3 - Employee Management
-- Persist employee records in database
-- Implement full CRUD operations
-- Add search, filtering, sorting, and pagination
-- Add profile image upload support
-- Add audit logging for changes
+### Phase 2 - Build the Backend Foundation
+1. First, split the backend into modular folders for routes, controllers, services, and models.
+2. Next, add environment configuration so the app can run safely across development and production.
+3. Then, set up PostgreSQL and connect the project to a real database.
+4. After that, replace the current in-memory mock data with persistent storage.
+5. Finally, add validation and proper error handling for all API requests.
 
-### Phase 4 - Leave Management
-- Submit leave requests
-- Manager approval/rejection workflow
-- Track leave balances
-- Add leave history and reporting
+### Phase 3 - Connect the Frontend to the Backend
+1. First, create APIs for employees, leave requests, and announcements.
+2. Next, connect the existing frontend screens to these APIs.
+3. Then, replace the temporary frontend dummy data with real backend responses.
+4. After that, handle loading, error, and empty states in the UI.
+5. Finally, make the full app work end to end with real data.
 
-### Phase 5 - Announcements and Notifications
-- Create and manage announcements
-- Add urgent/high-priority notices
-- Add department-based notifications
-- Support in-app and email notifications
+### Phase 4 - Add Authentication and Authorization
+1. First, implement user registration and login.
+2. Next, add JWT-based authentication for secure login sessions.
+3. Then, add refresh token support so users can stay logged in safely.
+4. After that, introduce Admin, Manager, and Employee roles.
+5. Finally, protect routes so each user can only access the features they are allowed to use.
 
-### Phase 6 - Analytics and Reporting
-- Add department and employee analytics
-- Show performance and salary summaries
-- Generate reports for HR/admin users
-- Add charts and dashboards for trends
+### Phase 5 - Build Advanced Workflows
+1. First, add full employee CRUD with search, filtering, sorting, and pagination.
+2. Next, build the leave request and approval workflow.
+3. Then, add announcement creation and notification support.
+4. After that, add audit logging and activity tracking.
+5. Finally, improve the system with reporting and analytics features.
 
-### Phase 7 - Testing and Deployment
-- Add backend testing
-- Add API integration testing
-- Add CI/CD pipeline
-- Dockerize the project
-- Deploy frontend and backend separately
+### Phase 6 - Test and Deploy
+1. First, add backend tests for core APIs.
+2. Next, add integration tests for the full flow between frontend and backend.
+3. Then, set up a CI/CD pipeline for automated deployment.
+4. After that, dockerize the application for easier setup.
+5. Finally, deploy the frontend and backend separately for production use.
 
 ## Suggested Tech Stack
 - Frontend: React, Vite, Tailwind-inspired UI
@@ -77,12 +75,13 @@ The goal is to transform this prototype into a complete employee management syst
 - Testing: Vitest, Supertest
 
 ## Recommended Execution Order
-1. Replace mock data with a real database
-2. Add authentication and roles
-3. Connect the existing UI to real APIs
-4. Build leave workflow and audit logging
-5. Add reporting and notifications
-6. Deploy and polish
+1. Keep dummy data in the frontend and complete the UI first
+2. Build the backend separately with a real database
+3. Add authentication and roles
+4. Connect the existing UI to real APIs
+5. Build leave workflow and audit logging
+6. Add reporting and notifications
+7. Deploy and polish
 
 ## Notes
 This project is a strong portfolio candidate because it combines:
