@@ -129,7 +129,7 @@ export default function EmployeeDirectoryView({
       {userRole === 'Employee' && (
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex items-center gap-2">
           <ShieldAlert className="h-4.5 w-4.5 text-amber-600 shrink-0" />
-          <span><strong>Standard Employee View:</strong> You have read-only access to employee profiles. Create, edit, and deletion actions require Manager or Admin credentials.</span>
+          <span><strong>Employee view:</strong> You can view the directory only.</span>
         </div>
       )}
 
@@ -199,16 +199,16 @@ export default function EmployeeDirectoryView({
                 <p className="flex items-center gap-1.5">
                   <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" /> Hired: {new Date(emp.joinDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                 </p>
-                {/* Salary (Restricted view for Employees) */}
-                {userRole !== 'Employee' ? (
+                {/* Salary (Visible to Admin and Manager) */}
+                {userRole === 'Employee' ? (
+                  <p className="flex items-center gap-1.5 text-slate-400 italic">
+                    <DollarSign className="h-3.5 w-3.5 text-slate-300 shrink-0" />
+                    Salary hidden
+                  </p>
+                ) : (
                   <p className="flex items-center gap-1.5 text-slate-800 font-medium">
                     <DollarSign className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
                     Salary: <span className="font-mono">${emp.salary.toLocaleString()} / yr</span>
-                  </p>
-                ) : (
-                  <p className="flex items-center gap-1.5 text-slate-400 italic">
-                    <DollarSign className="h-3.5 w-3.5 text-slate-300 shrink-0" />
-                    Salary restricted
                   </p>
                 )}
               </div>

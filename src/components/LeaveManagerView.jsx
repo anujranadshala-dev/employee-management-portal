@@ -50,7 +50,7 @@ export default function LeaveManagerView({
             Leave & Absence Manager
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            File annual vacations or medical absences. Approvals instantly transition system statuses.
+            Employees can submit leave requests. Admins and managers can review and approve them.
           </p>
         </div>
         <span className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-full border border-indigo-100 font-mono font-bold">
@@ -61,13 +61,14 @@ export default function LeaveManagerView({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Submit form (Left col) */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-          <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2">
-            <Send className="h-4 w-4 text-slate-500" />
-            Submit Leave Request
-          </h3>
+        {userRole === 'Employee' && (
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+            <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2">
+              <Send className="h-4 w-4 text-slate-500" />
+              Submit Leave Request
+            </h3>
 
-          <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             
             <div className="space-y-1">
               <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Leave Classification</label>
@@ -129,20 +130,21 @@ export default function LeaveManagerView({
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              id="btn-submit-leave"
-              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
-            >
-              <Send className="h-3.5 w-3.5" />
-              {isSubmitting ? 'Filing leave...' : 'Submit Request'}
-            </button>
-          </form>
-        </div>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                id="btn-submit-leave"
+                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+              >
+                <Send className="h-3.5 w-3.5" />
+                {isSubmitting ? 'Filing leave...' : 'Submit Request'}
+              </button>
+            </form>
+          </div>
+        )}
 
         {/* Requests tracker lists (Right cols) */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <div className={`${userRole === 'Employee' ? 'lg:col-span-2' : 'lg:col-span-3'} bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4`}>
           <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2">
             <Clock className="h-4 w-4 text-slate-500" />
             Absence Approvals & Requests ({leaveRequests.length})
