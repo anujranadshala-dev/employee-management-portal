@@ -28,5 +28,15 @@ export const leaveRequestSeedData = [
     reason: 'Art course intensive workshop',
     status: 'Approved',
     type: 'Vacation'
+  },
+  {
+    id: 'LR-004',
+    employeeId: 'EMP-002',
+    employeeName: 'Alex Smith',
+    startDate: '2026-09-02',
+    endDate: '2026-09-03',
+    reason: 'Doctor\'s appointment',
+    status: 'Approved',
+    type: 'Sick Leave'
   }
 ];

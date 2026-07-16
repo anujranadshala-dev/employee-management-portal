@@ -26,9 +26,10 @@ import LeaveManagerView from './components/LeaveManagerView';
 import AnnouncementsView from './components/AnnouncementsView';
 import { companySeedData } from './data';
 import { useSelector, useDispatch } from 'react-redux';
-import { selectAnnouncements, addAnnouncement, resetAnnouncements,setAnnouncements } from './store/slices/announcementsSlice';
-import { selectEmployees, addEmployee, updateEmployee, deleteEmployee, resetEmployees, setEmployees } from './store/slices/employeeSlice';
+import { selectAnnouncements, addAnnouncement, resetAnnouncements, setAnnouncements } from './store/slices/announcementsSlice';
+import { addEmployee, updateEmployee, deleteEmployee, resetEmployees, setEmployees, selectAllEmployees, selectVisibleEmployees } from './store/slices/employeeSlice';
 import { selectLeaveData, addLeave, updateLeave, resetLeave, setLeave } from './store/slices/leaveSlice';
+import { setUi, resetUi, openEmployeeForm, setSubmittingAnnouncement } from './store/slices/uiSlice';
 
 export default function App() {
   // Authentication & Session
@@ -39,39 +40,12 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // App Data State
-  const [companyInfo] = useState(companySeedData[0]);
-  const announcements = useSelector(selectAnnouncements);
-  const employeesList = useSelector(selectEmployees);
-  const leaveData = useSelector(selectLeaveData);
   const dispatch = useDispatch();
-
-  // Directory filter state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [deptFilter, setDeptFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [sortField, setSortField] = useState('firstName');
-  const [sortOrder, setSortOrder] = useState('asc');
-
-  // Modals
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState(null);
-
-  const visibleEmployees = useMemo(() => {
-    return [...employeesList]
-      .filter((employee) => {
-        const fullName = `${employee.firstName} ${employee.lastName}`.toLowerCase();
-        const matchesSearch = fullName.includes(searchTerm.toLowerCase());
-        const matchesDepartment = deptFilter === 'All' || employee.department === deptFilter;
-        const matchesStatus = statusFilter === 'All' || employee.status === statusFilter;
-        return matchesSearch && matchesDepartment && matchesStatus;
-      })
-      .sort((a, b) => {
-        const direction = sortOrder === 'asc' ? 1 : -1;
-        const aValue = a[sortField] ?? '';
-        const bValue = b[sortField] ?? '';
-        return aValue > bValue ? direction : aValue < bValue ? -direction : 0;
-      });
-  }, [employeesList, searchTerm, deptFilter, statusFilter, sortField, sortOrder]);
+  const announcements = useSelector(selectAnnouncements);
+  const employeesList = useSelector(selectAllEmployees);
+  const leaveData = useSelector(selectLeaveData);
+  const visibleEmployees = useSelector(selectVisibleEmployees);
+  const company = useSelector((state) => state.ui.company);
 
   useEffect(() => { }, []);
 
@@ -85,9 +59,11 @@ export default function App() {
     };
     setSession(defaultUser);
     setCurrentView('dashboard');
-    dispatch(setAnnouncements(announcements));
-    dispatch(setEmployees(employeesList));
-    dispatch(setLeave(leaveData));
+    // Data is already seeded in slices, resetting ensures a clean state on login
+    dispatch(resetAnnouncements());
+    dispatch(resetEmployees());
+    dispatch(resetLeave());
+    dispatch(resetUi());
   };
 
   const handleLogout = () => {
@@ -95,30 +71,27 @@ export default function App() {
     dispatch(resetAnnouncements());
     dispatch(resetEmployees());
     dispatch(resetLeave());
+    dispatch(resetUi());
   };
 
   // CRUD Save Employee Action
-  const handleSaveEmployee = async (formData) => {
+  const handleSaveEmployee = async (formData, employeeId) => {
     if (!session) return false;
     try {
-      const isEdit = !!editingEmployee;
-        if (isEdit) {
-          dispatch(updateEmployee({
-            ...editingEmployee,
-            ...formData
-          }));
-        }
-        else {
-          // 2. Dispatch the ADD action
-          // Generate the new ID using the length of the Redux state array
-          const newId = `EMP-${String(employeesList.length + 1).padStart(3, '0')}`;
-          dispatch(addEmployee({
-            ...formData,
-            id: newId
-          }));
-        }
-      setEditingEmployee(null);
-      setIsFormOpen(false);
+      const isEdit = !!employeeId;
+      if (isEdit) {
+        // The updateEmployee adapter reducer expects { id, changes }
+        dispatch(updateEmployee({ id: employeeId, changes: formData }));
+      }
+      else {
+        // 2. Dispatch the ADD action
+        // Generate the new ID using the length of the Redux state array
+        const newId = `EMP-${String(employeesList.length + 1).padStart(3, '0')}`;
+        dispatch(addEmployee({
+          ...formData,
+          id: newId
+        }));
+      }
       return true;
     } catch (err) {
       console.error('Failed saving employee profile:', err);
@@ -176,6 +149,7 @@ export default function App() {
   // Post Corporate Memo action
   const handlePostAnnouncement = async (memoData) => {
     if (!session || session.role === 'Employee') return;
+    dispatch(setSubmittingAnnouncement(true));
     try {
       const newAnnouncement = {
         id: `ANN-${String(announcements.length + 1).padStart(3, '0')}`,
@@ -185,29 +159,21 @@ export default function App() {
       };
 
       dispatch(addAnnouncement(newAnnouncement));
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 750));
     } catch (err) {
       console.error('Error posting announcement:', err);
+    } finally {
+      dispatch(setSubmittingAnnouncement(false));
     }
   };
 
   const onAddClick = () => {
-    setEditingEmployee(null);
-    setIsFormOpen(true);
+    dispatch(openEmployeeForm());
   };
 
   const onEditClick = (emp) => {
-    setEditingEmployee(emp);
-    setIsFormOpen(true);
-  };
-
-  // Multi-column sorting trigger
-  const handleSortChange = (field) => {
-    if (sortField === field) {
-      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortField(field);
-      setSortOrder('asc');
-    }
+    dispatch(openEmployeeForm({ employeeId: emp.id }));
   };
 
   // Simulated Custom Route Guard view mapper
@@ -216,10 +182,6 @@ export default function App() {
       case 'dashboard':
         return (
           <DashboardView
-            employees={employeesList}
-            leaveRequests={leaveData}
-            announcements={announcements}
-            company={companyInfo}
             onNavigate={setCurrentView}
           />
         );
@@ -231,20 +193,14 @@ export default function App() {
             onAddClick={onAddClick}
             onEditClick={onEditClick}
             onDeleteClick={handleDeleteEmployee}
-            onSearchChange={setSearchTerm}
-            onDeptFilterChange={setDeptFilter}
-            onStatusFilterChange={setStatusFilter}
-            onSortChange={handleSortChange}
-            currentSortField={sortField}
-            currentSortOrder={sortOrder}
           />
         );
       case 'leave':
         return (
           <LeaveManagerView
-            leaveRequests={leaveData}
             userRole={session?.role || 'Employee'}
             employeeId={session?.employeeId}
+            department={session?.department}
             onSubmitLeave={handlePostLeave}
             onUpdateLeaveStatus={handleUpdateLeave}
           />
@@ -252,7 +208,6 @@ export default function App() {
       case 'announcements':
         return (
           <AnnouncementsView
-            announcements={announcements}
             userRole={session?.role || 'Employee'}
             onPostAnnouncement={handlePostAnnouncement}
           />
@@ -260,10 +215,6 @@ export default function App() {
       default:
         return (
           <DashboardView
-            employees={employeesList}
-            leaveRequests={leaveData}
-            announcements={announcements}
-            company={companyInfo}
             onNavigate={setCurrentView}
           />
         );
@@ -550,9 +501,6 @@ export default function App() {
 
       {/* CREATE / EDIT DYNAMIC MODAL FORM */}
       <EmployeeFormModal
-        employee={editingEmployee}
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
         onSave={handleSaveEmployee}
       />
     </div>

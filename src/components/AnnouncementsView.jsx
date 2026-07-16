@@ -4,13 +4,17 @@
  */
 
 import React, { useState } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { Megaphone, Bell, Plus, Calendar, User, FileText, CheckCircle2 } from 'lucide-react';
+import { selectAnnouncements } from '../store/slices/announcementsSlice';
+import { selectIsSubmittingAnnouncement } from '../store/slices/uiSlice';
 
-export default function AnnouncementsView({ announcements, userRole, onPostAnnouncement }) {
+export default function AnnouncementsView({ userRole, onPostAnnouncement }) {
+  const announcements = useSelector(selectAnnouncements);
+  const isSubmitting = useSelector(selectIsSubmittingAnnouncement);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [important, setImportant] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [postSuccess, setPostSuccess] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -20,9 +24,7 @@ export default function AnnouncementsView({ announcements, userRole, onPostAnnou
       return;
     }
 
-    setIsSubmitting(true);
     await onPostAnnouncement({ title, content, important });
-    setIsSubmitting(false);
 
     setTitle('');
     setContent('');
