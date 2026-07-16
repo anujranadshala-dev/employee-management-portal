@@ -3,8 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { Search, Plus, SlidersHorizontal, Trash2, Edit3, ShieldAlert, Award, Phone, Mail, Calendar, DollarSign, ExternalLink } from 'lucide-react';
+import { setFilters, setSearchTerm, selectEmployeeFilters } from '../store/slices/employeeSlice';
 
 export default function EmployeeDirectoryView({
   employees,
@@ -12,24 +14,24 @@ export default function EmployeeDirectoryView({
   onAddClick,
   onEditClick,
   onDeleteClick,
-  onSearchChange,
-  onDeptFilterChange,
-  onStatusFilterChange,
-  onSortChange,
-  currentSortField,
-  currentSortOrder
 }) {
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [localSearch, setLocalSearch] = useState('');
+  const dispatch = useDispatch();
+  const { searchTerm, deptFilter, statusFilter, sortField, sortOrder } = useSelector(selectEmployeeFilters);
+  const [selectedEmployee, setSelectedEmployee] = React.useState(null);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    onSearchChange(localSearch);
+    // The search term is already in the store, this button can be for explicit submission if needed
+    // or we can rely on onChange. For now, it does nothing extra.
   };
 
   const handleSearchClear = () => {
-    setLocalSearch('');
-    onSearchChange('');
+    dispatch(setSearchTerm(''));
+  };
+
+  const handleSortChange = (field) => {
+    const newSortOrder = sortField === field && sortOrder === 'asc' ? 'desc' : 'asc';
+    dispatch(setFilters({ sortField: field, sortOrder: newSortOrder }));
   };
 
   return (
@@ -43,12 +45,12 @@ export default function EmployeeDirectoryView({
             <input
               type="text"
               id="search-input"
-              value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
+              value={searchTerm}
+              onChange={(e) => dispatch(setSearchTerm(e.target.value))}
               placeholder="Search by first or last name, email, role..."
               className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white transition-all"
             />
-            {localSearch && (
+            {searchTerm && (
               <button 
                 type="button" 
                 onClick={handleSearchClear}
@@ -89,7 +91,8 @@ export default function EmployeeDirectoryView({
               <span>Department:</span>
               <select
                 id="filter-dept"
-                onChange={(e) => onDeptFilterChange(e.target.value)}
+                value={deptFilter}
+                onChange={(e) => dispatch(setFilters({ deptFilter: e.target.value }))}
                 className="bg-slate-100 border border-slate-200 text-slate-700 px-3 py-1.5 rounded-md focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 text-xs font-medium cursor-pointer"
               >
                 <option value="All">All Departments</option>
@@ -107,7 +110,8 @@ export default function EmployeeDirectoryView({
               <span>Status:</span>
               <select
                 id="filter-status"
-                onChange={(e) => onStatusFilterChange(e.target.value)}
+                value={statusFilter}
+                onChange={(e) => dispatch(setFilters({ statusFilter: e.target.value }))}
                 className="bg-slate-100 border border-slate-200 text-slate-700 px-3 py-1.5 rounded-md focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 text-xs font-medium cursor-pointer"
               >
                 <option value="All">All Statuses</option>
@@ -129,7 +133,7 @@ export default function EmployeeDirectoryView({
       {userRole === 'Employee' && (
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex items-center gap-2">
           <ShieldAlert className="h-4.5 w-4.5 text-amber-600 shrink-0" />
-          <span><strong>Standard Employee View:</strong> You have read-only access to employee profiles. Create, edit, and deletion actions require Manager or Admin credentials.</span>
+          <span><strong>Employee view:</strong> You can view the directory only.</span>
         </div>
       )}
 
@@ -199,16 +203,16 @@ export default function EmployeeDirectoryView({
                 <p className="flex items-center gap-1.5">
                   <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" /> Hired: {new Date(emp.joinDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                 </p>
-                {/* Salary (Restricted view for Employees) */}
-                {userRole !== 'Employee' ? (
+                {/* Salary (Visible to Admin and Manager) */}
+                {userRole === 'Employee' ? (
+                  <p className="flex items-center gap-1.5 text-slate-400 italic">
+                    <DollarSign className="h-3.5 w-3.5 text-slate-300 shrink-0" />
+                    Salary hidden
+                  </p>
+                ) : (
                   <p className="flex items-center gap-1.5 text-slate-800 font-medium">
                     <DollarSign className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
                     Salary: <span className="font-mono">${emp.salary.toLocaleString()} / yr</span>
-                  </p>
-                ) : (
-                  <p className="flex items-center gap-1.5 text-slate-400 italic">
-                    <DollarSign className="h-3.5 w-3.5 text-slate-300 shrink-0" />
-                    Salary restricted
                   </p>
                 )}
               </div>

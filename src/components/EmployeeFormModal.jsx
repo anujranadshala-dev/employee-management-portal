@@ -4,10 +4,18 @@
  */
 
 import React, { useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import { X, Save, AlertCircle } from 'lucide-react';
+import { selectIsEmployeeFormOpen, selectEditingEmployeeId, closeEmployeeForm } from '../store/slices/uiSlice';
+import { selectEmployeeById } from '../store/slices/employeeSlice';
 
-export default function EmployeeFormModal({ employee, isOpen, onClose, onSave }) {
+export default function EmployeeFormModal({ onSave }) {
+  const dispatch = useDispatch();
+  const isOpen = useSelector(selectIsEmployeeFormOpen);
+  const editingEmployeeId = useSelector(selectEditingEmployeeId);
+  const employee = useSelector((state) => selectEmployeeById(state, editingEmployeeId));
+
   const {
     register,
     handleSubmit,
@@ -49,7 +57,7 @@ export default function EmployeeFormModal({ employee, isOpen, onClose, onSave })
         notes: ''
       });
     }
-  }, [employee, isOpen, reset]);
+  }, [employee, reset]);
 
   if (!isOpen) return null;
 
@@ -66,9 +74,9 @@ export default function EmployeeFormModal({ employee, isOpen, onClose, onSave })
       skills
     };
 
-    const success = await onSave(payload);
+    const success = await onSave(payload, editingEmployeeId);
     if (success) {
-      onClose();
+      dispatch(closeEmployeeForm());
     }
   };
 
@@ -91,7 +99,7 @@ export default function EmployeeFormModal({ employee, isOpen, onClose, onSave })
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={() => dispatch(closeEmployeeForm())}
             className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
           >
             <X className="h-5 w-5" />
@@ -351,7 +359,7 @@ export default function EmployeeFormModal({ employee, isOpen, onClose, onSave })
         <div className="flex justify-end gap-3 p-6 border-t border-slate-100 bg-slate-50">
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => dispatch(closeEmployeeForm())}
             className="px-5 py-2 rounded-lg text-slate-600 hover:bg-slate-200 hover:text-slate-800 text-xs font-bold transition-colors cursor-pointer"
           >
             Cancel

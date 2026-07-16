@@ -4,13 +4,17 @@
  */
 
 import React, { useState } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { Megaphone, Bell, Plus, Calendar, User, FileText, CheckCircle2 } from 'lucide-react';
+import { selectAnnouncements } from '../store/slices/announcementsSlice';
+import { selectIsSubmittingAnnouncement } from '../store/slices/uiSlice';
 
-export default function AnnouncementsView({ announcements, userRole, onPostAnnouncement }) {
+export default function AnnouncementsView({ userRole, onPostAnnouncement }) {
+  const announcements = useSelector(selectAnnouncements);
+  const isSubmitting = useSelector(selectIsSubmittingAnnouncement);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [important, setImportant] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [postSuccess, setPostSuccess] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -20,9 +24,7 @@ export default function AnnouncementsView({ announcements, userRole, onPostAnnou
       return;
     }
 
-    setIsSubmitting(true);
     await onPostAnnouncement({ title, content, important });
-    setIsSubmitting(false);
 
     setTitle('');
     setContent('');
@@ -49,8 +51,8 @@ export default function AnnouncementsView({ announcements, userRole, onPostAnnou
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Post announcement (Left column, Admin/Manager only) */}
-        {userRole !== 'Employee' ? (
+        {/* Post announcement (Admin only) */}
+        {userRole === 'Admin' ? (
           <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
             <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2">
               <Plus className="h-4 w-4 text-slate-500" />
@@ -121,7 +123,7 @@ export default function AnnouncementsView({ announcements, userRole, onPostAnnou
             <Bell className="h-10 w-10 text-slate-300 mx-auto" />
             <h3 className="font-bold text-slate-900 text-sm">Read-Only Memos</h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Standard Employees can browse public communications. You are not authorized to publish new global memos.
+              Employees can read announcements. Only admins can publish new company memos.
             </p>
           </div>
         )}
