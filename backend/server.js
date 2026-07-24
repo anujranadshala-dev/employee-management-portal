@@ -1,19 +1,24 @@
 import express from 'express';
 import dotenv from 'dotenv';
+import cors from 'cors';
+import connectDB from './db.js';
+import apiRoutes from './index.js';
 
 // Load environment variables from .env file
 dotenv.config();
 
+// Connect to MongoDB
+connectDB();
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware to parse JSON requests
-app.use(express.json());
+// Middleware
+app.use(cors()); // Enable Cross-Origin Resource Sharing
+app.use(express.json()); // To parse JSON request bodies
 
-// Basic route
-app.get('/', (req, res) => {
-  res.send('Employee Management Portal Backend API is running!');
-});
+// API Routes
+app.use('/api', apiRoutes);
 
 // Start the server
 app.listen(PORT, () => {
