@@ -2,8 +2,17 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-
-import React, { useState, useEffect, useMemo } from 'react';
+ 
+import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
+import {
+  Routes,
+  Route,
+  useNavigate,
+  useLocation,
+  NavLink,
+  Outlet,
+  Navigate,
+} from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Building2,
@@ -18,13 +27,8 @@ import {
   Lock,
   RefreshCw
 } from 'lucide-react';
-
-import DashboardView from './components/DashboardView';
-import EmployeeDirectoryView from './components/EmployeeDirectoryView';
+import AppRoutes from './AppRoutes';
 import EmployeeFormModal from './components/EmployeeFormModal';
-import LeaveManagerView from './components/LeaveManagerView';
-import AnnouncementsView from './components/AnnouncementsView';
-import { companySeedData } from './data';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectAnnouncements, addAnnouncement, resetAnnouncements, setAnnouncements } from './store/slices/announcementsSlice';
 import { addEmployee, updateEmployee, deleteEmployee, resetEmployees, setEmployees, selectAllEmployees, selectVisibleEmployees } from './store/slices/employeeSlice';
@@ -35,10 +39,6 @@ export default function App() {
   // Authentication & Session
   const [session, setSession] = useState(null);
 
-  // Views Navigation
-  const [currentView, setCurrentView] = useState('dashboard');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   // App Data State
   const dispatch = useDispatch();
   const announcements = useSelector(selectAnnouncements);
@@ -46,6 +46,8 @@ export default function App() {
   const leaveData = useSelector(selectLeaveData);
   const visibleEmployees = useSelector(selectVisibleEmployees);
   const company = useSelector((state) => state.ui.company);
+
+  const navigate = useNavigate();
 
   useEffect(() => { }, []);
 
@@ -58,7 +60,7 @@ export default function App() {
       department: role === 'Admin' ? 'Engineering' : role === 'Manager' ? 'Design' : 'Engineering'
     };
     setSession(defaultUser);
-    setCurrentView('dashboard');
+    navigate('/dashboard');
     // Data is already seeded in slices, resetting ensures a clean state on login
     dispatch(resetAnnouncements());
     dispatch(resetEmployees());
@@ -72,6 +74,7 @@ export default function App() {
     dispatch(resetEmployees());
     dispatch(resetLeave());
     dispatch(resetUi());
+    navigate('/');
   };
 
   // CRUD Save Employee Action
@@ -176,55 +179,11 @@ export default function App() {
     dispatch(openEmployeeForm({ employeeId: emp.id }));
   };
 
-  // Simulated Custom Route Guard view mapper
-  const renderCurrentView = () => {
-    switch (currentView) {
-      case 'dashboard':
-        return (
-          <DashboardView
-            onNavigate={setCurrentView}
-          />
-        );
-      case 'employees':
-        return (
-          <EmployeeDirectoryView
-            employees={visibleEmployees}
-            userRole={session?.role || 'Employee'}
-            onAddClick={onAddClick}
-            onEditClick={onEditClick}
-            onDeleteClick={handleDeleteEmployee}
-          />
-        );
-      case 'leave':
-        return (
-          <LeaveManagerView
-            userRole={session?.role || 'Employee'}
-            employeeId={session?.employeeId}
-            department={session?.department}
-            onSubmitLeave={handlePostLeave}
-            onUpdateLeaveStatus={handleUpdateLeave}
-          />
-        );
-      case 'announcements':
-        return (
-          <AnnouncementsView
-            userRole={session?.role || 'Employee'}
-            onPostAnnouncement={handlePostAnnouncement}
-          />
-        );
-      default:
-        return (
-          <DashboardView
-            onNavigate={setCurrentView}
-          />
-        );
-    }
-  };
-
   // Render Login view if no session exists
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+      <AnimatePresence mode="wait">
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -309,11 +268,81 @@ export default function App() {
             Secure simulation sandbox Environment
           </p>
         </motion.div>
-      </div>
+        </div>
+      </AnimatePresence>
     );
   }
 
   // Loaded Application view
+  return (
+    <>
+      {/* The Routes component now wraps only the PortalLayout */}
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <PortalLayout
+              session={session}
+              employeesList={employeesList}
+              handleLogout={handleLogout}
+            >
+              {/* The AppRoutes component is passed as a child to be rendered by the Outlet */}
+              <AppRoutes
+                session={session}
+                visibleEmployees={visibleEmployees}
+                onAddClick={onAddClick}
+                onEditClick={onEditClick}
+                handleDeleteEmployee={handleDeleteEmployee}
+                handlePostLeave={handlePostLeave}
+                handleUpdateLeave={handleUpdateLeave}
+                handlePostAnnouncement={handlePostAnnouncement}
+              />
+            </PortalLayout>
+          }
+        >
+          {/* A wildcard child route ensures all nested paths are handled by PortalLayout */}
+          <Route path="*" element={null} />
+        </Route>
+      </Routes>
+
+      {/* CREATE / EDIT DYNAMIC MODAL FORM */}
+      <EmployeeFormModal
+        onSave={handleSaveEmployee}
+      />
+    </>
+  );
+}
+
+/**
+ * Main application layout for authenticated users.
+ * Includes the sidebar, header, and the main content area where routed views are rendered.
+ */
+function PortalLayout({ session, handleLogout, employeesList, children }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+  const currentView = location.pathname.split('/')[1] || 'dashboard';
+
+  const navLinkClasses = ({ isActive }) =>
+    `flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer text-left transition-colors ${
+      isActive
+        ? 'bg-slate-800 text-white font-medium'
+        : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+    }`;
+
+  const mobileNavLinkClasses = ({ isActive }) =>
+    `w-full text-left px-3.5 py-2.5 rounded-xl transition-all ${
+      isActive ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800'
+    }`;
+
+  const activeIndicator = (isActive) => (
+    <div className={`w-1 h-4 rounded-full transition-all ${isActive ? 'bg-indigo-500' : 'bg-transparent'}`} />
+  );
+
+  useEffect(() => {
+    // Close mobile menu on navigation
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans select-none text-slate-900" id="portal-root">
       <div className="flex min-h-screen">
@@ -322,49 +351,41 @@ export default function App() {
           <div className="p-4 flex flex-col gap-1.5 flex-1 overflow-y-auto">
             <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2 ml-2 mt-2">Workspace</div>
 
-            <button
-              onClick={() => setCurrentView('dashboard')}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer text-left transition-colors ${currentView === 'dashboard'
-                ? 'bg-slate-800 text-white font-medium'
-                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                }`}
-            >
-              <div className={`w-1 h-4 rounded-full transition-all ${currentView === 'dashboard' ? 'bg-indigo-500' : 'bg-transparent'}`} />
-              <span className="text-xs font-semibold">Dashboard</span>
-            </button>
+            <NavLink to="/dashboard" className={navLinkClasses}>
+              {({ isActive }) => (
+                <>
+                  {activeIndicator(isActive)}
+                  <span className="text-xs font-semibold">Dashboard</span>
+                </>
+              )}
+            </NavLink>
 
-            <button
-              onClick={() => setCurrentView('employees')}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer text-left transition-colors ${currentView === 'employees'
-                ? 'bg-slate-800 text-white font-medium'
-                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                }`}
-            >
-              <div className={`w-1 h-4 rounded-full transition-all ${currentView === 'employees' ? 'bg-indigo-500' : 'bg-transparent'}`} />
-              <span className="text-xs font-semibold">Employee Directory</span>
-            </button>
+            <NavLink to="/employees" className={navLinkClasses}>
+              {({ isActive }) => (
+                <>
+                  {activeIndicator(isActive)}
+                  <span className="text-xs font-semibold">Employee Directory</span>
+                </>
+              )}
+            </NavLink>
 
-            <button
-              onClick={() => setCurrentView('leave')}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer text-left transition-colors ${currentView === 'leave'
-                ? 'bg-slate-800 text-white font-medium'
-                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                }`}
-            >
-              <div className={`w-1 h-4 rounded-full transition-all ${currentView === 'leave' ? 'bg-indigo-500' : 'bg-transparent'}`} />
-              <span className="text-xs font-semibold">Leave & Absences</span>
-            </button>
+            <NavLink to="/leave" className={navLinkClasses}>
+              {({ isActive }) => (
+                <>
+                  {activeIndicator(isActive)}
+                  <span className="text-xs font-semibold">Leave & Absences</span>
+                </>
+              )}
+            </NavLink>
 
-            <button
-              onClick={() => setCurrentView('announcements')}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer text-left transition-colors ${currentView === 'announcements'
-                ? 'bg-slate-800 text-white font-medium'
-                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                }`}
-            >
-              <div className={`w-1 h-4 rounded-full transition-all ${currentView === 'announcements' ? 'bg-indigo-500' : 'bg-transparent'}`} />
-              <span className="text-xs font-semibold">Announcements</span>
-            </button>
+            <NavLink to="/announcements" className={navLinkClasses}>
+              {({ isActive }) => (
+                <>
+                  {activeIndicator(isActive)}
+                  <span className="text-xs font-semibold">Announcements</span>
+                </>
+              )}
+            </NavLink>
 
             {/* Logout button */}
             <div className="mt-auto pt-4 border-t border-slate-800/80">
@@ -444,24 +465,15 @@ export default function App() {
                 </div>
 
                 <div className="flex flex-col gap-1 text-xs font-semibold">
-                  <button
-                    onClick={() => { setCurrentView('employees'); setMobileMenuOpen(false); }}
-                    className={`w-full text-left px-3.5 py-2.5 rounded-xl transition-all ${currentView === 'employees' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
-                  >
+                  <NavLink to="/employees" className={mobileNavLinkClasses}>
                     Employee Directory
-                  </button>
-                  <button
-                    onClick={() => { setCurrentView('leave'); setMobileMenuOpen(false); }}
-                    className={`w-full text-left px-3.5 py-2.5 rounded-xl transition-all ${currentView === 'leave' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
-                  >
+                  </NavLink>
+                  <NavLink to="/leave" className={mobileNavLinkClasses}>
                     Absence Manager
-                  </button>
-                  <button
-                    onClick={() => { setCurrentView('announcements'); setMobileMenuOpen(false); }}
-                    className={`w-full text-left px-3.5 py-2.5 rounded-xl transition-all ${currentView === 'announcements' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
-                  >
+                  </NavLink>
+                  <NavLink to="/announcements" className={mobileNavLinkClasses}>
                     Announcements
-                  </button>
+                  </NavLink>
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-3.5 py-2.5 rounded-xl text-rose-400 hover:bg-rose-955/20"
@@ -474,7 +486,7 @@ export default function App() {
           </AnimatePresence>
 
           {/* PRIMARY CONTENT PANEL */}
-          <main className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
+          <main className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 relative">
             <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-200 pb-3 mb-2">
               <div>
                 <span className="font-semibold text-slate-600">Employee Portal</span> &gt; <span className="capitalize text-slate-800 font-semibold">{currentView}</span>
@@ -484,25 +496,10 @@ export default function App() {
               </div>
             </div>
 
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentView}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.15 }}
-              >
-                {renderCurrentView()}
-              </motion.div>
-            </AnimatePresence>
+            {children}
           </main>
         </div>
       </div>
-
-      {/* CREATE / EDIT DYNAMIC MODAL FORM */}
-      <EmployeeFormModal
-        onSave={handleSaveEmployee}
-      />
     </div>
   );
 }
