@@ -30,10 +30,9 @@ import {
 import AppRoutes from './AppRoutes';
 import EmployeeFormModal from './components/EmployeeFormModal';
 import { useSelector, useDispatch } from 'react-redux';
-import { selectAnnouncements, addAnnouncement, resetAnnouncements, setAnnouncements } from './store/slices/announcementsSlice';
-import { addEmployee, updateEmployee, deleteEmployee, resetEmployees, setEmployees, selectAllEmployees, selectVisibleEmployees } from './store/slices/employeeSlice';
-import { selectLeaveData, addLeave, updateLeave, resetLeave, setLeave } from './store/slices/leaveSlice';
-import { setUi, resetUi, openEmployeeForm, setSubmittingAnnouncement } from './store/slices/uiSlice';
+import { selectAnnouncements, fetchAnnouncements, postAnnouncement } from './store/slices/announcementsSlice';
+import { fetchEmployees, addEmployee, updateEmployee, deleteEmployee, selectAllEmployees, selectVisibleEmployees } from './store/slices/employeeSlice';
+import { setUi, resetUi, openEmployeeForm, setSubmittingAnnouncement, setSessionUser } from './store/slices/uiSlice';
 
 export default function App() {
   // Authentication & Session
@@ -43,13 +42,18 @@ export default function App() {
   const dispatch = useDispatch();
   const announcements = useSelector(selectAnnouncements);
   const employeesList = useSelector(selectAllEmployees);
-  const leaveData = useSelector(selectLeaveData);
   const visibleEmployees = useSelector(selectVisibleEmployees);
   const company = useSelector((state) => state.ui.company);
 
   const navigate = useNavigate();
 
-  useEffect(() => { }, []);
+  useEffect(() => {
+    // On initial load (or after login), fetch all necessary data
+    if (session) {
+      dispatch(fetchAnnouncements());
+      dispatch(fetchEmployees());
+    }
+  }, [session, dispatch]);
 
   // Login Simulator handler
   const handleLogin = (role) => {
@@ -60,19 +64,15 @@ export default function App() {
       department: role === 'Admin' ? 'Engineering' : role === 'Manager' ? 'Design' : 'Engineering'
     };
     setSession(defaultUser);
+    dispatch(setSessionUser(defaultUser)); // <-- Add user to Redux store
     navigate('/dashboard');
-    // Data is already seeded in slices, resetting ensures a clean state on login
-    dispatch(resetAnnouncements());
-    dispatch(resetEmployees());
-    dispatch(resetLeave());
-    dispatch(resetUi());
   };
 
   const handleLogout = () => {
     setSession(null);
-    dispatch(resetAnnouncements());
-    dispatch(resetEmployees());
-    dispatch(resetLeave());
+    // Optionally clear redux state on logout
+    dispatch(setSessionUser(null));
+    // For now, we'll let the login fetch fresh data
     dispatch(resetUi());
     navigate('/');
   };
@@ -83,17 +83,14 @@ export default function App() {
     try {
       const isEdit = !!employeeId;
       if (isEdit) {
-        // The updateEmployee adapter reducer expects { id, changes }
-        dispatch(updateEmployee({ id: employeeId, changes: formData }));
+        await dispatch(updateEmployee({ id: employeeId, changes: formData })).unwrap();
       }
       else {
-        // 2. Dispatch the ADD action
-        // Generate the new ID using the length of the Redux state array
-        const newId = `EMP-${String(employeesList.length + 1).padStart(3, '0')}`;
-        dispatch(addEmployee({
+        // Dispatch the async thunk for adding an employee
+        await dispatch(addEmployee({
           ...formData,
-          id: newId
-        }));
+          startDate: new Date().toISOString(), // Add current date for new employees
+        })).unwrap();
       }
       return true;
     } catch (err) {
@@ -115,37 +112,9 @@ export default function App() {
     }
 
     try {
-      dispatch(deleteEmployee(id));
+      await dispatch(deleteEmployee(id)).unwrap();
     } catch (err) {
       console.error('Delete operation error:', err);
-    }
-  };
-
-  // Submit Leave request action
-  const handlePostLeave = async (leaveData) => {
-    if (!session) return;
-    try {
-      const newLeaveRequest = {
-        id: `LR-${String(leaveData.length + 1).padStart(3, '0')}`,
-        employeeId: session.employeeId,
-        employeeName: session.username,
-        ...leaveData,
-        status: 'Pending'
-      };
-
-      dispatch(addLeave(newLeaveRequest));
-    } catch (err) {
-      console.error('Leave submit error:', err);
-    }
-  };
-
-  // Approve / Reject Leave Request action
-  const handleUpdateLeave = async (id, status) => {
-    if (!session || session.role === 'Employee') return;
-    try {
-      dispatch(updateLeave({ id, status }));
-    } catch (err) {
-      console.error('Error updating leave status:', err);
     }
   };
 
@@ -154,18 +123,14 @@ export default function App() {
     if (!session || session.role === 'Employee') return;
     dispatch(setSubmittingAnnouncement(true));
     try {
-      const newAnnouncement = {
-        id: `ANN-${String(announcements.length + 1).padStart(3, '0')}`,
-        date: new Date().toISOString().slice(0, 10),
+      // The backend will handle ID, date, etc.
+      await dispatch(postAnnouncement({
         author: session.username,
         ...memoData
-      };
-
-      dispatch(addAnnouncement(newAnnouncement));
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 750));
+      })).unwrap(); // .unwrap() will throw an error if the thunk is rejected
     } catch (err) {
       console.error('Error posting announcement:', err);
+      alert('Failed to post announcement.');
     } finally {
       dispatch(setSubmittingAnnouncement(false));
     }
@@ -293,8 +258,6 @@ export default function App() {
                 onAddClick={onAddClick}
                 onEditClick={onEditClick}
                 handleDeleteEmployee={handleDeleteEmployee}
-                handlePostLeave={handlePostLeave}
-                handleUpdateLeave={handleUpdateLeave}
                 handlePostAnnouncement={handlePostAnnouncement}
               />
             </PortalLayout>
@@ -426,11 +389,11 @@ function PortalLayout({ session, handleLogout, employeesList, children }) {
             <div className="flex items-center gap-4">
               {/* Active User profile box */}
               <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-lg">
-                <div className="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs font-mono">
-                  {session.username.split(' ').map(n => n[0]).join('')}
+                <div className="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs font-mono" title={session.username}>
+                  {session.username?.split(' ').map(n => n[0]).join('')}
                 </div>
                 <div className="text-left">
-                  <span className="text-xs font-bold text-slate-900 block leading-tight truncate max-w-[120px]">{session.username}</span>
+                  <span className="text-xs font-bold text-slate-900 block leading-tight truncate max-w-[120px]">{session.username ?? 'User'}</span>
                   <span className="text-[10px] text-emerald-600 font-extrabold block font-mono leading-none mt-0.5">{session.role}</span>
                 </div>
               </div>
@@ -455,11 +418,11 @@ function PortalLayout({ session, handleLogout, employeesList, children }) {
                 className="lg:hidden bg-slate-900 text-slate-300 border-b border-slate-800 px-6 py-4 space-y-3 z-10 relative"
               >
                 <div className="flex items-center gap-2 bg-slate-800 p-2.5 rounded-xl mb-2">
-                  <div className="h-7 w-7 bg-indigo-600 rounded-full text-white flex items-center justify-center text-xs font-bold">
-                    {session.username[0]}
+                  <div className="h-7 w-7 bg-indigo-600 rounded-full text-white flex items-center justify-center text-xs font-bold" title={session.username}>
+                    {session.username?.[0]}
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-white block">{session.username}</span>
+                    <span className="text-xs font-bold text-white block">{session.username ?? 'User'}</span>
                     <span className="text-[9px] text-emerald-400 font-mono font-bold block">{session.role}</span>
                   </div>
                 </div>

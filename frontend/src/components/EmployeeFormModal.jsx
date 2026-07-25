@@ -35,8 +35,8 @@ export default function EmployeeFormModal({ onSave }) {
         status: employee.status,
         salary: employee.salary,
         performanceScore: employee.performanceScore,
-        joinDate: employee.joinDate,
-        skillsString: employee.skills ? employee.skills.join(', ') : '',
+        joinDate: employee.joinDate?.split('T')[0], // Handle date string
+        skillsString: employee.skills?.join(', ') ?? '',
         bio: employee.bio || '',
         notes: employee.notes || ''
       });
@@ -63,9 +63,7 @@ export default function EmployeeFormModal({ onSave }) {
 
   const onSubmitForm = async (data) => {
     // Process comma separated skills to array
-    const skills = data.skillsString
-      ? data.skillsString.split(',').map(s => s.trim()).filter(s => s.length > 0)
-      : [];
+    const skills = data.skillsString?.split(',').map(s => s.trim()).filter(s => s.length > 0) ?? [];
 
     const payload = {
       ...data,

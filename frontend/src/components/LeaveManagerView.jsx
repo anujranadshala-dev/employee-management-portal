@@ -3,14 +3,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo } from 'react';
-import { useSelector } from 'react-redux';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { CalendarRange, Plus, Check, X, Clock, Send, Users } from 'lucide-react';
-import { selectLeaveData } from '../store/slices/leaveSlice';
+import {
+  selectLeaveData,
+  fetchLeaveRequests,
+  submitLeaveRequest,
+  updateLeaveStatus,
+} from '../store/slices/leaveSlice';
 import { selectAllEmployees } from '../store/slices/employeeSlice';
 
-export default function LeaveManagerView({ userRole, employeeId, department, onSubmitLeave, onUpdateLeaveStatus }) {
+export default function LeaveManagerView({ userRole, employeeId, department }) {
+  const { username: employeeName } = useSelector(state => state.ui.company.user) || {}; // Get current user's name safely
   const leaveRequests = useSelector(selectLeaveData);
+  const dispatch = useDispatch();
   const allEmployees = useSelector(selectAllEmployees);
   const [leaveType, setLeaveType] = useState('Vacation');
   const [startDate, setStartDate] = useState('');
@@ -18,6 +25,8 @@ export default function LeaveManagerView({ userRole, employeeId, department, onS
   const [reason, setReason] = useState('');
 
   const myRequests = useMemo(() => {
+    // In a real app, you might get this from a dedicated API endpoint
+    // or filter from all requests if the user is a manager.
     return leaveRequests.filter(req => req.employeeId === employeeId);
   }, [leaveRequests, employeeId]);
 
@@ -35,16 +44,26 @@ export default function LeaveManagerView({ userRole, employeeId, department, onS
     );
   }, [leaveRequests, allEmployees, department, employeeId]);
 
+  useEffect(() => {
+    // Fetch initial leave data when the component mounts
+    dispatch(fetchLeaveRequests());
+  }, [dispatch]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!startDate || !endDate) {
       alert('Please select start and end dates.');
       return;
     }
-    await onSubmitLeave({ leaveType, startDate, endDate, reason });
+    // In a real app, employeeId would come from the authenticated user session
+    dispatch(submitLeaveRequest({ employeeId, employeeName, leaveType, startDate, endDate, reason }));
     setStartDate('');
     setEndDate('');
     setReason('');
+  };
+
+  const handleUpdateStatus = (id, status) => {
+    dispatch(updateLeaveStatus({ id, status }));
   };
 
   const StatusBadge = ({ status }) => {
@@ -144,18 +163,18 @@ export default function LeaveManagerView({ userRole, employeeId, department, onS
                 <div>
                   <div className="font-bold text-slate-800">{req.leaveType}</div>
                   <div className="text-xs text-slate-500">
-                    {userRole !== 'Employee' && <span className="font-semibold">{req.employeeName} &middot; </span>}
-                    {req.startDate} to {req.endDate}
+                    {userRole !== 'Employee' && <span className="font-semibold">{req?.employeeName} &middot; </span>}
+                    {req?.startDate} to {req?.endDate}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <StatusBadge status={req.status} />
                   {userRole !== 'Employee' && req.status === 'Pending' && req.employeeId !== employeeId && (
                     <div className="flex gap-2">
-                      <button onClick={() => onUpdateLeaveStatus(req.id, 'Approved')} className="p-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-full">
+                      <button onClick={() => handleUpdateStatus(req.id, 'Approved')} className="p-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-full">
                         <Check className="h-4 w-4" />
                       </button>
-                      <button onClick={() => onUpdateLeaveStatus(req.id, 'Rejected')} className="p-2 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-full">
+                      <button onClick={() => handleUpdateStatus(req.id, 'Rejected')} className="p-2 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-full">
                         <X className="h-4 w-4" />
                       </button>
                     </div>
@@ -176,9 +195,9 @@ export default function LeaveManagerView({ userRole, employeeId, department, onS
             {upcomingTeamLeave.length > 0 ? upcomingTeamLeave.map(req => (
               <div key={req.id} className="p-4 rounded-lg border border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                  <div className="font-bold text-slate-800">{req.employeeName}</div>
+                  <div className="font-bold text-slate-800">{req?.employeeName}</div>
                   <div className="text-xs text-slate-500">
-                    {req.startDate} to {req.endDate}
+                    {req?.startDate} to {req?.endDate}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -206,18 +225,18 @@ export default function LeaveManagerView({ userRole, employeeId, department, onS
                   <div>
                     <div className="font-bold text-slate-800">{req.leaveType}</div>
                     <div className="text-xs text-slate-500">
-                      <span className="font-semibold">{req.employeeName} &middot; </span>
-                      {req.startDate} to {req.endDate}
+                      <span className="font-semibold">{req?.employeeName} &middot; </span>
+                      {req?.startDate} to {req?.endDate}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <StatusBadge status={req.status} />
                     {req.status === 'Pending' && (
                       <div className="flex gap-2">
-                        <button onClick={() => onUpdateLeaveStatus(req.id, 'Approved')} className="p-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-full">
+                        <button onClick={() => handleUpdateStatus(req.id, 'Approved')} className="p-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-full">
                           <Check className="h-4 w-4" />
                         </button>
-                        <button onClick={() => onUpdateLeaveStatus(req.id, 'Rejected')} className="p-2 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-full">
+                        <button onClick={() => handleUpdateStatus(req.id, 'Rejected')} className="p-2 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-full">
                           <X className="h-4 w-4" />
                         </button>
                       </div>

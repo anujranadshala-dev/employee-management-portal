@@ -9,7 +9,7 @@ router.route('/')
 
 router.route('/:id')
   .get(employeeController.getEmployeeById)
-  .put(employeeController.updateEmployee)
+  .patch(employeeController.updateEmployee)
   .delete(employeeController.deleteEmployee);
 
 export default router;

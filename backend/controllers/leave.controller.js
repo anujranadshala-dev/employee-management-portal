@@ -1,4 +1,5 @@
 import Leave from '../models/leave.model.js';
+import { v4 as uuidv4 } from 'uuid';
 
 // GET /api/leave - Get all leave requests
 export const getAllLeaveRequests = async (req, res) => {
@@ -12,9 +13,13 @@ export const getAllLeaveRequests = async (req, res) => {
 
 // POST /api/leave - Create a new leave request
 export const createLeaveRequest = async (req, res) => {
-  const leaveRequest = new Leave(req.body);
   try {
-    const newLeaveRequest = await leaveRequest.save();
+    const newLeaveRequest = new Leave({
+      ...req.body,
+      id: `LR-${uuidv4().split('-')[0]}`, // Generate a unique ID
+      status: 'Pending', // Ensure default status is set
+    });
+    await newLeaveRequest.save();
     res.status(201).json(newLeaveRequest);
   } catch (error) {
     res.status(400).json({ message: error.message });

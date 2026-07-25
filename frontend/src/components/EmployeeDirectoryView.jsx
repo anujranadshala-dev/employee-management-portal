@@ -163,7 +163,7 @@ export default function EmployeeDirectoryView({
                   />
                 ) : (
                   <div className="h-12 w-12 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-sm shrink-0 font-mono">
-                    {emp.firstName[0]}{emp.lastName[0]}
+                    {emp.firstName?.[0]}{emp.lastName?.[0]}
                   </div>
                 )}
                 
@@ -201,7 +201,7 @@ export default function EmployeeDirectoryView({
                   <Phone className="h-3.5 w-3.5 text-slate-400 shrink-0" /> {emp.phone}
                 </p>
                 <p className="flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" /> Hired: {new Date(emp.joinDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                  <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" /> Hired: {emp.joinDate ? new Date(emp.joinDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}
                 </p>
                 {/* Salary (Visible to Admin and Manager) */}
                 {userRole === 'Employee' ? (
@@ -212,20 +212,20 @@ export default function EmployeeDirectoryView({
                 ) : (
                   <p className="flex items-center gap-1.5 text-slate-800 font-medium">
                     <DollarSign className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                    Salary: <span className="font-mono">${emp.salary.toLocaleString()} / yr</span>
+                    Salary: <span className="font-mono">${emp.salary?.toLocaleString() ?? 'N/A'} / yr</span>
                   </p>
                 )}
               </div>
 
               {/* Skills section */}
-              {emp.skills && emp.skills.length > 0 && (
+              {emp.skills?.length > 0 && (
                 <div className="flex flex-wrap gap-1 pt-1">
-                  {emp.skills.slice(0, 3).map((sk, idx) => (
+                  {emp.skills?.slice(0, 3).map((sk, idx) => (
                     <span key={idx} className="text-[9px] font-mono bg-slate-50 text-slate-500 px-1.5 py-0.5 rounded border border-slate-100">
                       {sk}
                     </span>
                   ))}
-                  {emp.skills.length > 3 && (
+                  {emp.skills?.length > 3 && (
                     <span className="text-[9px] font-mono text-slate-400 px-1 py-0.5">
                       +{emp.skills.length - 3} more
                     </span>
@@ -289,7 +289,7 @@ export default function EmployeeDirectoryView({
                   />
                 ) : (
                   <div className="h-14 w-14 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold font-mono">
-                    {selectedEmployee.firstName[0]}{selectedEmployee.lastName[0]}
+                    {selectedEmployee.firstName?.[0]}{selectedEmployee.lastName?.[0]}
                   </div>
                 )}
                 <div>
@@ -358,11 +358,11 @@ export default function EmployeeDirectoryView({
               </div>
 
               {/* Skills tags list */}
-              {selectedEmployee.skills && selectedEmployee.skills.length > 0 && (
+              {selectedEmployee.skills?.length > 0 && (
                 <div className="space-y-2">
                   <h4 className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">Verified Skills & Technologies</h4>
                   <div className="flex flex-wrap gap-1.5">
-                    {selectedEmployee.skills.map((sk, idx) => (
+                    {selectedEmployee.skills?.map((sk, idx) => (
                       <span key={idx} className="bg-slate-100 text-slate-800 border border-slate-200 font-mono text-[10px] px-2.5 py-1 rounded-md">
                         {sk}
                       </span>
@@ -393,7 +393,7 @@ export default function EmployeeDirectoryView({
                 </div>
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
-                  <span>Joined: {new Date(selectedEmployee.joinDate).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                  <span>Joined: {selectedEmployee.joinDate ? new Date(selectedEmployee.joinDate).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}</span>
                 </div>
               </div>
 

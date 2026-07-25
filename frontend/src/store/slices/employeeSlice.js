@@ -1,5 +1,76 @@
-import { createSlice, createEntityAdapter, createSelector } from '@reduxjs/toolkit';
-import { employeeSeedData } from '../../data';
+import { createSlice, createEntityAdapter, createSelector, createAsyncThunk } from '@reduxjs/toolkit';
+
+const API_BASE_URL = 'http://localhost:5000/api';
+
+// Async thunk for fetching all employees
+export const fetchEmployees = createAsyncThunk(
+  'employees/fetchEmployees',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/employees`);
+      if (!response.ok) throw new Error('Server error');
+      return await response.json();
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Async thunk for adding an employee
+export const addEmployee = createAsyncThunk(
+  'employees/addEmployee',
+  async (employeeData, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/employees`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(employeeData),
+      });
+      if (!response.ok) throw new Error('Could not add employee.');
+      return await response.json();
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Async thunk for updating an employee
+export const updateEmployee = createAsyncThunk(
+  'employees/updateEmployee',
+  async ({ id, changes }, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/employees/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(changes),
+      });
+      if (!response.ok) throw new Error('Could not update employee.');
+      return await response.json();
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Async thunk for deleting an employee
+export const deleteEmployee = createAsyncThunk(
+  'employees/deleteEmployee',
+  async (employeeId, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/employees/${employeeId}`, {
+        method: 'DELETE',
+      });
+      // A successful DELETE might not return a body, so we check for a 204 (No Content) or 200 status
+      if (!response.ok) {
+        throw new Error('Could not delete employee.');
+      }
+      // On success, we return the ID so the reducer knows which employee to remove
+      return employeeId;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
 
 // Create an entity adapter for employees.
 // The `selectId` function tells the adapter that the unique ID for each employee is `employee.id`.
@@ -19,25 +90,14 @@ const initialState = employeesAdapter.getInitialState({
     sortField: 'firstName',
     sortOrder: 'asc',
   },
+  status: 'idle',
+  error: null,
 });
 
 const employeeSlice = createSlice({
   name: 'employees',
   initialState,
   reducers: {
-    // Use the adapter's `addOne` reducer to add a new employee
-    addEmployee: employeesAdapter.addOne,
-    // Use the adapter's `updateOne` reducer to update an existing employee
-    updateEmployee: employeesAdapter.updateOne,
-    // Use the adapter's `removeOne` reducer to delete an employee
-    deleteEmployee: employeesAdapter.removeOne,
-    // Use the adapter's `setAll` reducer to replace all employees
-    setEmployees: employeesAdapter.setAll,
-    // To reset, we can just return the initial state
-    resetEmployees: (state) => {
-        employeesAdapter.setAll(state, employeeSeedData);
-        state.filters = initialState.filters;
-    },
     setSearchTerm: (state, action) => {
       state.filters.searchTerm = action.payload;
     },
@@ -45,17 +105,29 @@ const employeeSlice = createSlice({
       state.filters = { ...state.filters, ...action.payload };
     },
   },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchEmployees.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(fetchEmployees.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        employeesAdapter.setAll(state, action.payload);
+      })
+      .addCase(fetchEmployees.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      .addCase(addEmployee.fulfilled, employeesAdapter.addOne)
+      .addCase(updateEmployee.fulfilled, (state, action) => {
+        // The adapter's updateOne reducer expects an object with { id, changes }
+        employeesAdapter.updateOne(state, { id: action.payload.id, changes: action.payload });
+      })
+      .addCase(deleteEmployee.fulfilled, employeesAdapter.removeOne);
+  }
 });
 
-export const {
-  addEmployee,
-  updateEmployee,
-  deleteEmployee,
-  setEmployees,
-  resetEmployees,
-  setSearchTerm,
-  setFilters,
-} = employeeSlice.actions;
+export const { setSearchTerm, setFilters } = employeeSlice.actions;
 
 export default employeeSlice.reducer;
 
@@ -73,12 +145,12 @@ export const selectVisibleEmployees = createSelector(
   [selectAllEmployees, selectEmployeeFilters],
   (employees, filters) => {
     const { searchTerm, deptFilter, statusFilter, sortField, sortOrder } = filters;
-    const filtered = employees.filter((employee) => {
-      const fullName = `${employee.firstName} ${employee.lastName}`.toLowerCase();
+    const filtered = employees?.filter((employee) => {
+      const fullName = `${employee?.firstName ?? ''} ${employee?.lastName ?? ''}`.toLowerCase();
       return (
         fullName.includes(searchTerm.toLowerCase()) &&
-        (deptFilter === 'All' || employee.department === deptFilter) &&
-        (statusFilter === 'All' || employee.status === statusFilter)
+        (deptFilter === 'All' || employee?.department === deptFilter) &&
+        (statusFilter === 'All' || employee?.status === statusFilter)
       );
     });
 

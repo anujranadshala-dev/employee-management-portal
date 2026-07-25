@@ -43,7 +43,7 @@ export default function DashboardView({ onNavigate }) {
     {
       icon: DollarSign,
       label: 'Average Salary',
-      value: `$${(stats.avgSalary / 1000).toFixed(1)}k`,
+      value: `$${Math.round(stats.avgSalary).toLocaleString()}`,
       color: 'violet',
       id: 'stat-avg-salary'
     },
@@ -127,7 +127,7 @@ export default function DashboardView({ onNavigate }) {
                   <td className="p-3 font-bold text-slate-800">{dept.name}</td>
                   <td className="p-3 text-slate-600">{dept.manager}</td>
                   <td className="p-3 text-center font-mono font-semibold">{dept.headCount}</td>
-                  <td className="p-3 text-right font-mono text-emerald-700">${(dept.avgSalary / 1000).toFixed(1)}k</td>
+                  <td className="p-3 text-right font-mono text-emerald-700">${Math.round(dept.avgSalary).toLocaleString()}</td>
                   <td className="p-3 text-right font-mono text-blue-700">${dept.budget.toLocaleString()}</td>
                 </tr>
               ))}
