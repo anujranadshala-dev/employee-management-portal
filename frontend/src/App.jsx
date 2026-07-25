@@ -244,7 +244,7 @@ export default function App() {
       {/* The Routes component now wraps only the PortalLayout */}
       <Routes>
         <Route
-          path="/"
+          path="/*"
           element={
             <PortalLayout
               session={session}
@@ -262,10 +262,7 @@ export default function App() {
               />
             </PortalLayout>
           }
-        >
-          {/* A wildcard child route ensures all nested paths are handled by PortalLayout */}
-          <Route path="*" element={null} />
-        </Route>
+        />
       </Routes>
 
       {/* CREATE / EDIT DYNAMIC MODAL FORM */}
