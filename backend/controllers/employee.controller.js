@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 // @route   GET /api/employees
 export const getAllEmployees = async (req, res) => {
   try {
-    const employees = await Employee.find({});
+    const employees = await Employee.find({}).sort({ firstName: 'asc' });
     res.status(200).json(employees);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching employees', error: error.message });
@@ -30,9 +30,13 @@ export const getEmployeeById = async (req, res) => {
 // @route   POST /api/employees
 export const createEmployee = async (req, res) => {
   try {
+    // The frontend will send a 'permissionLevel' based on the dropdown selection.
+    const { password, ...employeeData } = req.body;
+
     const newEmployee = new Employee({
-      ...req.body,
+      ...employeeData,
       id: `EMP-${uuidv4().split('-')[0]}`, // Generate a shorter, unique ID
+      password: password || 'Password@123',
     });
     const savedEmployee = await newEmployee.save();
     res.status(201).json(savedEmployee);
@@ -46,7 +50,12 @@ export const createEmployee = async (req, res) => {
 export const updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
-    const updatedEmployee = await Employee.findOneAndUpdate({ id: id }, req.body, {
+    const updateData = req.body;
+
+    const updatedEmployee = await Employee.findOneAndUpdate(
+      { id: id },
+      { $set: updateData }, // Use $set to prevent accidentally overwriting the whole document
+      {
       new: true, // Return the updated document
       runValidators: true,
     });

@@ -6,48 +6,30 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { CalendarRange, Plus, Check, X, Clock, Send, Users } from 'lucide-react';
-import {
-  selectLeaveData,
-  fetchLeaveRequests,
-  submitLeaveRequest,
-  updateLeaveStatus,
-} from '../store/slices/leaveSlice';
+import { fetchLeaveRequests, submitLeaveRequest, updateLeaveStatus, selectMyLeaveRequests, selectTeamLeaveRequests } from '../store/slices/leaveSlice';
 import { selectAllEmployees } from '../store/slices/employeeSlice';
+import { selectAuth } from '../store/slices/authSlice';
 
-export default function LeaveManagerView({ userRole, employeeId, department }) {
-  const { username: employeeName } = useSelector(state => state.ui.company.user) || {}; // Get current user's name safely
-  const leaveRequests = useSelector(selectLeaveData);
+export default function LeaveManagerView() {
+  const { user: session } = useSelector(selectAuth);
   const dispatch = useDispatch();
+
+  // Use the specific, memoized selectors to get the arrays directly
+  const myRequests = useSelector(selectMyLeaveRequests);
+  const teamRequests = useSelector(selectTeamLeaveRequests);
   const allEmployees = useSelector(selectAllEmployees);
+
   const [leaveType, setLeaveType] = useState('Vacation');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');
 
-  const myRequests = useMemo(() => {
-    // In a real app, you might get this from a dedicated API endpoint
-    // or filter from all requests if the user is a manager.
-    return leaveRequests.filter(req => req.employeeId === employeeId);
-  }, [leaveRequests, employeeId]);
-
-  const teamRequests = useMemo(() => {
-    return leaveRequests.filter(req => req.employeeId !== employeeId);
-  }, [leaveRequests]);
-
   const upcomingTeamLeave = useMemo(() => {
-    const employeesInDept = allEmployees
-      .filter(emp => emp.department === department && emp.id !== employeeId)
-      .map(emp => emp.id);
-
-    return leaveRequests.filter(req =>
-      req.status === 'Approved' && employeesInDept.includes(req.employeeId)
+    // Show all approved leave for team members
+    return teamRequests.filter(req =>
+      req.status === 'Approved' && new Date(req.startDate) >= new Date()
     );
-  }, [leaveRequests, allEmployees, department, employeeId]);
-
-  useEffect(() => {
-    // Fetch initial leave data when the component mounts
-    dispatch(fetchLeaveRequests());
-  }, [dispatch]);
+  }, [teamRequests]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -55,8 +37,7 @@ export default function LeaveManagerView({ userRole, employeeId, department }) {
       alert('Please select start and end dates.');
       return;
     }
-    // In a real app, employeeId would come from the authenticated user session
-    dispatch(submitLeaveRequest({ employeeId, employeeName, leaveType, startDate, endDate, reason }));
+    dispatch(submitLeaveRequest({ leaveType, startDate, endDate, reason }));
     setStartDate('');
     setEndDate('');
     setReason('');
@@ -162,14 +143,13 @@ export default function LeaveManagerView({ userRole, employeeId, department }) {
               <div key={req.id} className="p-4 rounded-lg border border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <div className="font-bold text-slate-800">{req.leaveType}</div>
-                  <div className="text-xs text-slate-500">
-                    {userRole !== 'Employee' && <span className="font-semibold">{req?.employeeName} &middot; </span>}
-                    {req?.startDate} to {req?.endDate}
+                  <div className="text-xs text-slate-500 font-mono">
+                    {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <StatusBadge status={req.status} />
-                  {userRole !== 'Employee' && req.status === 'Pending' && req.employeeId !== employeeId && (
+                  {req.status === 'Pending' && (
                     <div className="flex gap-2">
                       <button onClick={() => handleUpdateStatus(req.id, 'Approved')} className="p-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-full">
                         <Check className="h-4 w-4" />
@@ -196,8 +176,8 @@ export default function LeaveManagerView({ userRole, employeeId, department }) {
               <div key={req.id} className="p-4 rounded-lg border border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <div className="font-bold text-slate-800">{req?.employeeName}</div>
-                  <div className="text-xs text-slate-500">
-                    {req?.startDate} to {req?.endDate}
+                  <div className="text-xs text-slate-500 font-mono">
+                    {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -213,7 +193,7 @@ export default function LeaveManagerView({ userRole, employeeId, department }) {
         </div>
 
         {/* Team Requests (for Managers/Admins) */}
-        {userRole !== 'Employee' && (
+        {(session.isAdmin || session.isDepartmentManager) && (
           <div className="lg:col-span-3 bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
             <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2">
               <Clock className="h-4 w-4 text-slate-500" />
@@ -224,9 +204,9 @@ export default function LeaveManagerView({ userRole, employeeId, department }) {
                 <div key={req.id} className="p-4 rounded-lg border border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
                     <div className="font-bold text-slate-800">{req.leaveType}</div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-slate-500 font-mono">
                       <span className="font-semibold">{req?.employeeName} &middot; </span>
-                      {req?.startDate} to {req?.endDate}
+                      {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">

@@ -19,13 +19,10 @@ const AnnouncementsView = lazy(() => import('./components/AnnouncementsView'));
  * This component is wrapped with Suspense to handle lazy loading of route components.
  */
 export default function AppRoutes({
-  session,
   visibleEmployees,
   onAddClick,
   onEditClick,
   handleDeleteEmployee,
-  handlePostLeave,
-  handleUpdateLeave,
   handlePostAnnouncement,
 }) {
   return (
@@ -49,7 +46,6 @@ export default function AppRoutes({
               element={
                 <EmployeeDirectoryView
                   employees={visibleEmployees}
-                  userRole={session?.role || 'Employee'}
                   onAddClick={onAddClick}
                   onEditClick={onEditClick}
                   onDeleteClick={handleDeleteEmployee}
@@ -60,21 +56,13 @@ export default function AppRoutes({
               path="leave"
               element={
                 <LeaveManagerView
-                  userRole={session?.role || 'Employee'}
-                  employeeId={session?.employeeId}
-                  department={session?.department}
-                  onSubmitLeave={handlePostLeave}
-                  onUpdateLeaveStatus={handleUpdateLeave}
                 />
               }
             />
             <Route
               path="announcements"
               element={
-                <AnnouncementsView
-                  userRole={session?.role || 'Employee'}
-                  onPostAnnouncement={handlePostAnnouncement}
-                />
+                <AnnouncementsView onPostAnnouncement={handlePostAnnouncement} />
               }
             />
 

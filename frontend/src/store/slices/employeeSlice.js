@@ -7,7 +7,13 @@ export const fetchEmployees = createAsyncThunk(
   'employees/fetchEmployees',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/employees`);
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/employees`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       if (!response.ok) throw new Error('Server error');
       return await response.json();
     } catch (error) {
@@ -21,9 +27,13 @@ export const addEmployee = createAsyncThunk(
   'employees/addEmployee',
   async (employeeData, { rejectWithValue }) => {
     try {
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`${API_BASE_URL}/employees`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify(employeeData),
       });
       if (!response.ok) throw new Error('Could not add employee.');
@@ -39,9 +49,13 @@ export const updateEmployee = createAsyncThunk(
   'employees/updateEmployee',
   async ({ id, changes }, { rejectWithValue }) => {
     try {
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`${API_BASE_URL}/employees/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify(changes),
       });
       if (!response.ok) throw new Error('Could not update employee.');
@@ -57,8 +71,12 @@ export const deleteEmployee = createAsyncThunk(
   'employees/deleteEmployee',
   async (employeeId, { rejectWithValue }) => {
     try {
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`${API_BASE_URL}/employees/${employeeId}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
       });
       // A successful DELETE might not return a body, so we check for a 204 (No Content) or 200 status
       if (!response.ok) {

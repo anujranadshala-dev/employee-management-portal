@@ -7,10 +7,12 @@ import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Megaphone, Bell, Plus, Calendar, User, FileText, CheckCircle2 } from 'lucide-react';
 import { selectAnnouncements } from '../store/slices/announcementsSlice';
+import { selectAuth } from '../store/slices/authSlice';
 import { selectIsSubmittingAnnouncement } from '../store/slices/uiSlice';
 
-export default function AnnouncementsView({ userRole, onPostAnnouncement }) {
+export default function AnnouncementsView({ onPostAnnouncement }) {
   const announcements = useSelector(selectAnnouncements);
+  const { user: session } = useSelector(selectAuth);
   const isSubmitting = useSelector(selectIsSubmittingAnnouncement);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -52,7 +54,7 @@ export default function AnnouncementsView({ userRole, onPostAnnouncement }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Post announcement (Admin only) */}
-        {userRole === 'Admin' ? (
+        {session.isAdmin || session.isDepartmentManager ? (
           <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
             <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2">
               <Plus className="h-4 w-4 text-slate-500" />
@@ -123,7 +125,7 @@ export default function AnnouncementsView({ userRole, onPostAnnouncement }) {
             <Bell className="h-10 w-10 text-slate-300 mx-auto" />
             <h3 className="font-bold text-slate-900 text-sm">Read-Only Memos</h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Employees can read announcements. Only admins can publish new company memos.
+              Employees can read announcements. Only Admins and Managers can publish new company memos.
             </p>
           </div>
         )}

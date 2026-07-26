@@ -1,12 +1,17 @@
 import { Router } from 'express';
-import * as leaveController from '../controllers/leave.controller.js';
+import {
+  getAllLeaveRequests,
+  createLeaveRequest,
+  updateLeaveRequestStatus,
+} from '../controllers/leave.controller.js';
+import { protect, authorizeAdminOrManager } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
-router.route('/')
-  .get(leaveController.getAllLeaveRequests)
-  .post(leaveController.createLeaveRequest);
+// All leave routes require a user to be logged in
+router.use(protect);
 
-router.patch('/:id', leaveController.updateLeaveStatus);
+router.route('/').get(getAllLeaveRequests).post(createLeaveRequest);
+router.route('/:id/status').patch(authorizeAdminOrManager, updateLeaveRequestStatus);
 
 export default router;

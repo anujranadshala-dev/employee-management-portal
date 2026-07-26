@@ -1,17 +1,16 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
-const API_BASE_URL = 'http://localhost:5000/api'; // Ensure this matches your backend API URL
+const API_BASE_URL = 'http://localhost:5000/api';
 
-// Async thunk for fetching dashboard statistics from the backend
 export const fetchDashboardStats = createAsyncThunk(
-  'dashboard/fetchDashboardStats',
+  'dashboard/fetchStats',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/dashboard/stats`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Server error fetching dashboard stats');
-      }
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/dashboard/stats`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch dashboard stats.');
       return await response.json();
     } catch (error) {
       return rejectWithValue(error.message);
@@ -19,22 +18,22 @@ export const fetchDashboardStats = createAsyncThunk(
   }
 );
 
-// Initial state for the dashboard slice
 const initialState = {
   stats: {
     totalEmployees: 0,
-    employeesOnLeave: 0,
-    pendingLeaveRequests: 0,
-    totalAnnouncements: 0,
+    onLeave: 0,
+    averageTenure: 0,
   },
-  status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
+  status: 'idle',
   error: null,
 };
 
 const dashboardSlice = createSlice({
   name: 'dashboard',
   initialState,
-  reducers: {}, // No synchronous reducers needed for this slice currently
+  reducers: {
+    // Future reducers can go here
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchDashboardStats.pending, (state) => {
@@ -42,7 +41,7 @@ const dashboardSlice = createSlice({
       })
       .addCase(fetchDashboardStats.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.stats = action.payload; // Store the fetched stats
+        state.stats = action.payload;
       })
       .addCase(fetchDashboardStats.rejected, (state, action) => {
         state.status = 'failed';
@@ -51,9 +50,8 @@ const dashboardSlice = createSlice({
   },
 });
 
-export default dashboardSlice.reducer;
-
-// Selectors for accessing dashboard state
 export const selectDashboardStats = (state) => state.dashboard.stats;
 export const selectDashboardStatus = (state) => state.dashboard.status;
 export const selectDashboardError = (state) => state.dashboard.error;
+
+export default dashboardSlice.reducer;

@@ -7,7 +7,12 @@ export const fetchAnnouncements = createAsyncThunk(
   'announcements/fetchAnnouncements',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/announcements`);
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/announcements`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
       if (!response.ok) throw new Error('Server error');
       return await response.json();
     } catch (error) {
@@ -21,9 +26,13 @@ export const postAnnouncement = createAsyncThunk(
   'announcements/postAnnouncement',
   async (announcementData, { rejectWithValue }) => {
     try {
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`${API_BASE_URL}/announcements`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify(announcementData),
       });
       if (!response.ok) throw new Error('Could not post announcement.');

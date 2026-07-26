@@ -5,16 +5,16 @@
 
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Search, Plus, SlidersHorizontal, Trash2, Edit3, ShieldAlert, Award, Phone, Mail, Calendar, DollarSign, ExternalLink } from 'lucide-react';
-import { setFilters, setSearchTerm, selectEmployeeFilters } from '../store/slices/employeeSlice';
+import { Search, Plus, SlidersHorizontal, Trash2, Edit3, ShieldAlert, Award, Phone, Mail, Calendar, DollarSign, ExternalLink } from 'lucide-react';import { setFilters, setSearchTerm, selectEmployeeFilters } from '../store/slices/employeeSlice';
+import { selectAuth } from '../store/slices/authSlice';
 
 export default function EmployeeDirectoryView({
   employees,
-  userRole,
   onAddClick,
   onEditClick,
   onDeleteClick,
 }) {
+  const { user: session } = useSelector(selectAuth);
   const dispatch = useDispatch();
   const { searchTerm, deptFilter, statusFilter, sortField, sortOrder } = useSelector(selectEmployeeFilters);
   const [selectedEmployee, setSelectedEmployee] = React.useState(null);
@@ -70,7 +70,7 @@ export default function EmployeeDirectoryView({
               Apply Search
             </button>
 
-            {userRole === 'Admin' && (
+            {session.isAdmin && ( // Only Admins can add new employees
               <button
                 type="button"
                 onClick={onAddClick}
@@ -130,7 +130,7 @@ export default function EmployeeDirectoryView({
       </div>
 
       {/* Role Notice */}
-      {userRole === 'Employee' && (
+      {!session.isAdmin && !session.isDepartmentManager && (
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex items-center gap-2">
           <ShieldAlert className="h-4.5 w-4.5 text-amber-600 shrink-0" />
           <span><strong>Employee view:</strong> You can view the directory only.</span>
@@ -204,7 +204,7 @@ export default function EmployeeDirectoryView({
                   <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" /> Hired: {emp.joinDate ? new Date(emp.joinDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}
                 </p>
                 {/* Salary (Visible to Admin and Manager) */}
-                {userRole === 'Employee' ? (
+                {!session.isAdmin && !session.isDepartmentManager ? (
                   <p className="flex items-center gap-1.5 text-slate-400 italic">
                     <DollarSign className="h-3.5 w-3.5 text-slate-300 shrink-0" />
                     Salary hidden
@@ -243,7 +243,7 @@ export default function EmployeeDirectoryView({
                 </button>
 
                 <div className="flex gap-1">
-                  {userRole !== 'Employee' && (
+                  {(session.isAdmin || session.isDepartmentManager) && ( // Admins and Managers can edit
                     <button
                       onClick={() => onEditClick(emp)}
                       title="Edit Profile"
@@ -254,7 +254,7 @@ export default function EmployeeDirectoryView({
                     </button>
                   )}
 
-                  {userRole === 'Admin' && (
+                  {session.isAdmin && ( // Only Admins can delete
                     <button
                       onClick={() => onDeleteClick(emp.id)}
                       title="Delete Profile"
@@ -372,7 +372,7 @@ export default function EmployeeDirectoryView({
               )}
 
               {/* Admin Confidential assessment Notes */}
-              {userRole !== 'Employee' && selectedEmployee.notes && (
+              {(session.isAdmin || session.isDepartmentManager) && selectedEmployee.notes && (
                 <div className="space-y-1.5 border-t border-slate-100 pt-4">
                   <span className="text-slate-400 font-bold uppercase text-[10px] tracking-widest block">HR Confidential Assessment Notes</span>
                   <p className="text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">

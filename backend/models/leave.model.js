@@ -1,24 +1,19 @@
 import mongoose from 'mongoose';
 
-const leaveSchema = new mongoose.Schema({
+const leaveRequestSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
   employeeId: { type: String, required: true },
-  id: { type: String, required: true, unique: true }, // Added for consistency with frontend
-  employeeName: { type: String, required: true },
+  employeeName: { type: String },
   startDate: { type: Date, required: true },
   endDate: { type: Date, required: true },
-  reason: { type: String, required: true },
+  reason: { type: String },
   status: {
     type: String,
     enum: ['Pending', 'Approved', 'Rejected'],
     default: 'Pending',
   },
-}, {
-  timestamps: true,
-  // Explicitly set the collection name to avoid ambiguity.
-  // Mongoose would otherwise default to "leaves".
-  collection: 'leaveRequests'
-});
+}, { timestamps: true });
 
-const Leave = mongoose.model('Leave', leaveSchema);
+const LeaveRequest = mongoose.model('LeaveRequest', leaveRequestSchema, 'leaves');
 
-export default Leave;
+export default LeaveRequest;

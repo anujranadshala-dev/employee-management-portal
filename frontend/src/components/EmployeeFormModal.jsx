@@ -25,36 +25,47 @@ export default function EmployeeFormModal({ onSave }) {
 
   useEffect(() => {
     if (employee) {
+      // Determine permissionLevel from boolean flags for editing
+      let permissionLevel = 'EMPLOYEE';
+      if (employee.isAdmin) {
+        permissionLevel = 'HR_ADMIN';
+      } else if (employee.isDepartmentManager) {
+        permissionLevel = 'DEPT_MANAGER';
+      }
+
       reset({
-        firstName: employee.firstName,
-        lastName: employee.lastName,
-        email: employee.email,
-        phone: employee.phone,
-        department: employee.department,
-        role: employee.role,
-        status: employee.status,
-        salary: employee.salary,
-        performanceScore: employee.performanceScore,
-        joinDate: employee.joinDate?.split('T')[0], // Handle date string
+        firstName: employee.firstName ?? '',
+        lastName: employee.lastName ?? '',
+        email: employee.email ?? '',
+        phone: employee.phone ?? '',
+        department: employee.department ?? 'Engineering',
+        role: employee.role ?? '',
+        status: employee.status ?? 'Active',
+        salary: employee.salary ?? 0,
+        performanceScore: employee.performanceScore ?? 3,
+        joinDate: employee.joinDate?.split('T')[0] ?? '', // Handle date string
         skillsString: employee.skills?.join(', ') ?? '',
-        bio: employee.bio || '',
-        notes: employee.notes || ''
-      });
+        bio: employee.bio ?? '',
+        notes: employee.notes ?? '',
+        permissionLevel: permissionLevel,
+      }); 
     } else {
       reset({
         firstName: '',
         lastName: '',
         email: '',
         phone: '',
-        department: 'Engineering',
+        department: '',
         role: '',
         status: 'Active',
-        salary: 60000,
-        performanceScore: 3,
+        salary: '',
+        performanceScore: '',
         joinDate: new Date().toISOString().split('T')[0],
         skillsString: '',
         bio: '',
-        notes: ''
+        notes: '',
+        password: '', // Add password to reset
+        permissionLevel: 'EMPLOYEE', // Default for new employees
       });
     }
   }, [employee, reset]);
@@ -65,11 +76,17 @@ export default function EmployeeFormModal({ onSave }) {
     // Process comma separated skills to array
     const skills = data.skillsString?.split(',').map(s => s.trim()).filter(s => s.length > 0) ?? [];
 
+    // Translate permissionLevel into boolean flags for the backend
+    const isAdmin = data.permissionLevel === 'HR_ADMIN';
+    const isDepartmentManager = data.permissionLevel === 'DEPT_MANAGER';
+
     const payload = {
       ...data,
       salary: Number(data.salary),
       performanceScore: Number(data.performanceScore),
-      skills
+      skills,
+      isAdmin,
+      isDepartmentManager,
     };
 
     const success = await onSave(payload, editingEmployeeId);
@@ -199,6 +216,32 @@ export default function EmployeeFormModal({ onSave }) {
             </div>
           </div>
 
+          {/* Row: Password (only for new employees) */}
+          {!employee && (
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-tighter">Set Initial Password *</label>
+              <input
+                id="form-password"
+                type="password"
+                className={`w-full px-3.5 py-2 rounded-lg text-sm border bg-white focus:outline-hidden focus:ring-2 transition-all ${
+                  errors.password 
+                    ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-500' 
+                    : 'border-slate-200 focus:ring-indigo-500/20 focus:border-indigo-500'
+                }`}
+                placeholder="Enter a secure temporary password"
+                {...register('password', { 
+                  required: 'An initial password is required for new employees',
+                  minLength: { value: 6, message: 'Password must be at least 6 characters' }
+                })}
+              />
+              {errors.password && (
+                <p className="text-xs text-rose-600 flex items-center gap-1 font-bold">
+                  <AlertCircle className="h-3 w-3 shrink-0" /> {errors.password.message}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Row 3: Dept & Role */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
@@ -236,6 +279,23 @@ export default function EmployeeFormModal({ onSave }) {
                 </p>
               )}
             </div>
+          </div>
+
+          {/* --- PERMISSION LEVEL FIELD --- */}
+          <div className="space-y-1 border-t border-slate-100 pt-5">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-tighter">System Permission Level *</label>
+            <select
+              id="form-permissionLevel"
+              className="w-full px-3.5 py-2 rounded-lg text-sm border border-slate-200 bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer transition-all"
+              {...register('permissionLevel')}
+            >
+              <option value="EMPLOYEE">Standard Employee (View-only access)</option>
+              <option value="DEPT_MANAGER">Department Manager (Can edit profiles)</option>
+              <option value="HR_ADMIN">HR Admin (Full control)</option>
+            </select>
+            <p className="text-[11px] text-slate-400 mt-1.5">
+              This setting controls what the user can see and do within the portal. It is separate from their job title.
+            </p>
           </div>
 
           {/* Row 4: Status & Salary */}

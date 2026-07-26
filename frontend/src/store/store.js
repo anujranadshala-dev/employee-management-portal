@@ -1,18 +1,18 @@
 import { configureStore } from '@reduxjs/toolkit';
-import uiReducer from './slices/uiSlice';
+import authReducer from './slices/authSlice';
 import employeeReducer from './slices/employeeSlice';
-import leaveReducer from './slices/leaveSlice';
 import announcementsReducer from './slices/announcementsSlice';
+import uiReducer from './slices/uiSlice';
 import dashboardReducer from './slices/dashboardSlice';
+import leaveReducer from './slices/leaveSlice';
 
-const store = configureStore({
+export const store = configureStore({
   reducer: {
-    ui: uiReducer,
+    auth: authReducer,
     employees: employeeReducer,
-    leave: leaveReducer,
     announcements: announcementsReducer,
+    leave: leaveReducer,
     dashboard: dashboardReducer,
+    ui: uiReducer,
   },
 });
-
-export default store;

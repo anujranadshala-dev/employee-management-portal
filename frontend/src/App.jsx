@@ -1,6 +1,6 @@
 /**
  * @license
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: Apache-2.0 
  */
  
 import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
@@ -13,66 +13,41 @@ import {
   Outlet,
   Navigate,
 } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
 import {
-  Building2,
-  Users,
-  CalendarRange,
-  Megaphone,
-  Terminal,
   LogOut,
-  UserCheck,
   Menu,
   X,
-  Lock,
-  RefreshCw
 } from 'lucide-react';
 import AppRoutes from './AppRoutes';
+import LoginView from './components/LoginView';
 import EmployeeFormModal from './components/EmployeeFormModal';
 import { useSelector, useDispatch } from 'react-redux';
-import { selectAnnouncements, fetchAnnouncements, postAnnouncement } from './store/slices/announcementsSlice';
+import { fetchAnnouncements, postAnnouncement } from './store/slices/announcementsSlice';
 import { fetchEmployees, addEmployee, updateEmployee, deleteEmployee, selectAllEmployees, selectVisibleEmployees } from './store/slices/employeeSlice';
-import { setUi, resetUi, openEmployeeForm, setSubmittingAnnouncement, setSessionUser } from './store/slices/uiSlice';
+import { resetUi, openEmployeeForm, setSubmittingAnnouncement } from './store/slices/uiSlice';
+import { logout, selectAuth } from './store/slices/authSlice';
 
 export default function App() {
-  // Authentication & Session
-  const [session, setSession] = useState(null);
+  const dispatch = useDispatch();
+  const { isAuthenticated, user: session } = useSelector(selectAuth);
 
   // App Data State
-  const dispatch = useDispatch();
-  const announcements = useSelector(selectAnnouncements);
   const employeesList = useSelector(selectAllEmployees);
   const visibleEmployees = useSelector(selectVisibleEmployees);
-  const company = useSelector((state) => state.ui.company);
 
   const navigate = useNavigate();
 
   useEffect(() => {
     // On initial load (or after login), fetch all necessary data
-    if (session) {
-      dispatch(fetchAnnouncements());
-      dispatch(fetchEmployees());
+    if (!isAuthenticated) {
+      // If not authenticated, redirect to login
+      navigate('/');
     }
-  }, [session, dispatch]);
-
-  // Login Simulator handler
-  const handleLogin = (role) => {
-    const defaultUser = {
-      username: role === 'Admin' ? 'Jane Doe' : role === 'Manager' ? 'Sarah Connor' : 'Alex Smith',
-      role,
-      employeeId: role === 'Admin' ? 'EMP-001' : role === 'Manager' ? 'EMP-003' : 'EMP-002',
-      department: role === 'Admin' ? 'Engineering' : role === 'Manager' ? 'Design' : 'Engineering'
-    };
-    setSession(defaultUser);
-    dispatch(setSessionUser(defaultUser)); // <-- Add user to Redux store
-    navigate('/dashboard');
-  };
+  }, [isAuthenticated, dispatch, navigate]);
 
   const handleLogout = () => {
-    setSession(null);
-    // Optionally clear redux state on logout
-    dispatch(setSessionUser(null));
-    // For now, we'll let the login fetch fresh data
+    dispatch(logout());
     dispatch(resetUi());
     navigate('/');
   };
@@ -102,7 +77,7 @@ export default function App() {
 
   // CRUD Delete Employee Action
   const handleDeleteEmployee = async (id) => {
-    if (!session || session.role !== 'Admin') {
+    if (!session || !session.isAdmin) { // Only Admins can delete
       alert('Unauthorized action');
       return;
     }
@@ -120,12 +95,12 @@ export default function App() {
 
   // Post Corporate Memo action
   const handlePostAnnouncement = async (memoData) => {
-    if (!session || session.role === 'Employee') return;
+    if (!session || (!session.isAdmin && !session.isDepartmentManager)) return; // Admins and Managers can post
     dispatch(setSubmittingAnnouncement(true));
     try {
       // The backend will handle ID, date, etc.
       await dispatch(postAnnouncement({
-        author: session.username,
+        author: session.name,
         ...memoData
       })).unwrap(); // .unwrap() will throw an error if the thunk is rejected
     } catch (err) {
@@ -147,94 +122,10 @@ export default function App() {
   // Render Login view if no session exists
   if (!session) {
     return (
-      <AnimatePresence mode="wait">
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          id="login-container"
-          className="bg-white w-full max-w-md rounded-3xl border border-slate-200 p-8 shadow-xl space-y-6"
-        >
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-slate-900 rounded-2xl text-white shrink-0">
-              <Building2 className="h-6 w-6" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">Enterprise Portal</h2>
-              <p className="text-xs text-slate-500 font-medium font-mono">Employee Directory Command</p>
-            </div>
-          </div>
-
-          <div className="space-y-2 border-b border-slate-100 pb-4">
-            <h3 className="font-bold text-slate-800 text-sm">Role-Based Authentication</h3>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Authenticate via simulation roles. Custom route guards, directory controls, and payroll scopes are configured differently for each credential tier.
-            </p>
-          </div>
-
-          <div className="space-y-3">
-            {/* Admin trigger */}
-            <button
-              onClick={() => handleLogin('Admin')}
-              id="login-as-admin"
-              className="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-between text-left group cursor-pointer"
-            >
-              <div className="flex gap-3.5 items-center">
-                <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-xl group-hover:bg-emerald-100 transition-colors">
-                  <UserCheck className="h-5 w-5" />
-                </div>
-                <div>
-                  <span className="font-bold text-slate-900 text-sm block">HR Admin</span>
-                  <span className="text-slate-500 text-xs mt-0.5 block">Full CRUD, payroll audits, employee terminations</span>
-                </div>
-              </div>
-              <Lock className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
-            </button>
-
-            {/* Manager trigger */}
-            <button
-              onClick={() => handleLogin('Manager')}
-              id="login-as-manager"
-              className="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-between text-left group cursor-pointer"
-            >
-              <div className="flex gap-3.5 items-center">
-                <div className="p-2.5 bg-blue-50 text-blue-700 rounded-xl group-hover:bg-blue-100 transition-colors">
-                  <UserCheck className="h-5 w-5" />
-                </div>
-                <div>
-                  <span className="font-bold text-slate-900 text-sm block">Department Manager</span>
-                  <span className="text-slate-500 text-xs mt-0.5 block">Profile editing, leave approvals, performance ratings</span>
-                </div>
-              </div>
-              <Lock className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
-            </button>
-
-            {/* Employee trigger */}
-            <button
-              onClick={() => handleLogin('Employee')}
-              id="login-as-employee"
-              className="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-between text-left group cursor-pointer"
-            >
-              <div className="flex gap-3.5 items-center">
-                <div className="p-2.5 bg-slate-50 text-slate-700 rounded-xl group-hover:bg-slate-200 transition-colors">
-                  <UserCheck className="h-5 w-5" />
-                </div>
-                <div>
-                  <span className="font-bold text-slate-900 text-sm block">Standard Employee</span>
-                  <span className="text-slate-500 text-xs mt-0.5 block">Read-only directory, self profile, leave request filings</span>
-                </div>
-              </div>
-              <Lock className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors shrink-0" />
-            </button>
-          </div>
-
-          <p className="text-[10px] text-center text-slate-400 font-mono">
-            Secure simulation sandbox Environment
-          </p>
-        </motion.div>
-        </div>
-      </AnimatePresence>
+      <Routes>
+        <Route path="/" element={<LoginView />} />
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
     );
   }
 
@@ -244,6 +135,7 @@ export default function App() {
       {/* The Routes component now wraps only the PortalLayout */}
       <Routes>
         <Route
+          // All authenticated routes are now nested here
           path="/*"
           element={
             <PortalLayout
@@ -253,7 +145,6 @@ export default function App() {
             >
               {/* The AppRoutes component is passed as a child to be rendered by the Outlet */}
               <AppRoutes
-                session={session}
                 visibleEmployees={visibleEmployees}
                 onAddClick={onAddClick}
                 onEditClick={onEditClick}
@@ -387,10 +278,10 @@ function PortalLayout({ session, handleLogout, employeesList, children }) {
               {/* Active User profile box */}
               <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-lg">
                 <div className="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs font-mono" title={session.username}>
-                  {session.username?.split(' ').map(n => n[0]).join('')}
+                  {session.name?.split(' ').map(n => n[0]).join('')}
                 </div>
                 <div className="text-left">
-                  <span className="text-xs font-bold text-slate-900 block leading-tight truncate max-w-[120px]">{session.username ?? 'User'}</span>
+                  <span className="text-xs font-bold text-slate-900 block leading-tight truncate max-w-[120px]">{session.name ?? 'User'}</span>
                   <span className="text-[10px] text-emerald-600 font-extrabold block font-mono leading-none mt-0.5">{session.role}</span>
                 </div>
               </div>
@@ -416,10 +307,10 @@ function PortalLayout({ session, handleLogout, employeesList, children }) {
               >
                 <div className="flex items-center gap-2 bg-slate-800 p-2.5 rounded-xl mb-2">
                   <div className="h-7 w-7 bg-indigo-600 rounded-full text-white flex items-center justify-center text-xs font-bold" title={session.username}>
-                    {session.username?.[0]}
+                    {session.name?.[0]}
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-white block">{session.username ?? 'User'}</span>
+                    <span className="text-xs font-bold text-white block">{session.name ?? 'User'}</span>
                     <span className="text-[9px] text-emerald-400 font-mono font-bold block">{session.role}</span>
                   </div>
                 </div>
