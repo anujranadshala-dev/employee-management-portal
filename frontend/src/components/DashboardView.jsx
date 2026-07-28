@@ -1,73 +1,177 @@
 import React, { useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchDashboardStats, selectDashboardStats, selectDashboardStatus, selectDashboardError } from '../store/slices/dashboardSlice';
-import { Users, CalendarRange, Megaphone, Briefcase } from 'lucide-react'; // Assuming these icons are available
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchDashboardStats, selectDashboardStats, selectDashboardStatus } from '../store/slices/dashboardSlice';
+import { Users, Briefcase, UserPlus, CalendarOff, Megaphone, Building2, RefreshCw } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
-const DashboardView = () => {
+const StatCard = ({ icon, title, value, color }) => (
+  <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${color}`}>
+      {icon}
+    </div>
+    <div>
+      <div className="text-2xl font-bold text-slate-900">{value}</div>
+      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{title}</div>
+    </div>
+  </div>
+);
+
+const CHART_COLORS = ['#6366F1', '#818CF8', '#A5B4FC', '#C7D2FE'];
+
+export default function DashboardView() {
   const dispatch = useDispatch();
   const stats = useSelector(selectDashboardStats);
   const status = useSelector(selectDashboardStatus);
-  const error = useSelector(selectDashboardError);
 
   useEffect(() => {
-    // Fetch dashboard stats when the component mounts if they haven't been fetched yet
     if (status === 'idle') {
       dispatch(fetchDashboardStats());
     }
-  }, [status, dispatch]);
-
-  if (status === 'loading') {
-    return <div className="text-center py-8">Loading dashboard statistics...</div>;
   }
+  , [status, dispatch]);
 
-  if (status === 'failed') {
-    return <div className="text-center py-8 text-red-500">Error loading dashboard: {error}</div>;
+  if (status === 'loading' || status === 'idle') {
+    return <div className="flex items-center justify-center h-full"><RefreshCw className="h-6 w-6 text-slate-400 animate-spin" /></div>;
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-slate-800">Company Dashboard</h1>
+    <div className="space-y-6" id="dashboard-root">
+      {/* Stat Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <StatCard
+          icon={<Users className="h-6 w-6 text-indigo-800" />}
+          title="Total Active Employees"
+          value={stats.totalEmployees}
+          color="bg-indigo-200"
+        />
+        <StatCard
+          icon={<CalendarOff className="h-6 w-6 text-amber-800" />}
+          title="Employees On Leave"
+          value={stats.onLeave}
+          color="bg-amber-200"
+        />
+        <StatCard
+          icon={<UserPlus className="h-6 w-6 text-emerald-800" />}
+          title="New Hires (Last 30 Days)"
+          value={stats.recentHires?.length || 0}
+          color="bg-emerald-200"
+        />
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Total Employees Card */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-slate-500">Total Employees</p>
-            <p className="text-3xl font-bold text-slate-900 mt-1">{stats.totalEmployees}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Department Headcount */}
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2 mb-4">
+              <Building2 className="h-4 w-4 text-slate-500" />
+              Department Headcount
+            </h3>
+            <div style={{ width: '100%', height: 300 }}>
+              <ResponsiveContainer>
+                <BarChart data={stats.departmentCounts} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip cursor={{ fill: 'rgba(99, 102, 241, 0.1)' }} />
+                  <Bar dataKey="count" name="Employees">
+                    {stats.departmentCounts?.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-          <Users className="h-10 w-10 text-indigo-500 opacity-20" />
         </div>
 
-        {/* Employees on Leave Card */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-slate-500">Employees on Leave</p>
-            <p className="text-3xl font-bold text-slate-900 mt-1">{stats.employeesOnLeave}</p>
+        {/* Right Column */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Latest Announcements */}
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2 mb-4">
+              <Megaphone className="h-4 w-4 text-slate-500" />
+              Latest Announcements
+            </h3>
+            <div className="space-y-3">
+              {stats.latestAnnouncements?.length > 0 ? stats.latestAnnouncements.map(ann => (
+                <div key={ann.id} className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                  <p className="text-sm font-semibold text-slate-800">{ann.title}</p>
+                  <p className="text-xs text-slate-500">by {ann.author} on {new Date(ann.createdAt).toLocaleDateString()}</p>
+                </div>
+              )) : (
+                <p className="text-xs text-slate-400 text-center py-4">No recent announcements.</p>
+              )}
+            </div>
           </div>
-          <CalendarRange className="h-10 w-10 text-orange-500 opacity-20" />
-        </div>
-
-        {/* Pending Leave Requests Card */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-slate-500">Pending Leave Requests</p>
-            <p className="text-3xl font-bold text-slate-900 mt-1">{stats.pendingLeaveRequests}</p>
-          </div>
-          <Briefcase className="h-10 w-10 text-red-500 opacity-20" />
-        </div>
-
-        {/* Total Announcements Card */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-slate-500">Total Announcements</p>
-            <p className="text-3xl font-bold text-slate-900 mt-1">{stats.totalAnnouncements}</p>
-          </div>
-          <Megaphone className="h-10 w-10 text-green-500 opacity-20" />
         </div>
       </div>
-      {/* You can add more dashboard components here */}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Upcoming Leave */}
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2 mb-4">
+            <CalendarOff className="h-4 w-4 text-slate-500" />
+            Upcoming Absences (Next 7 Days)
+          </h3>
+          <div className="space-y-3">
+            {stats.upcomingLeave?.length > 0 ? stats.upcomingLeave.map(leave => (
+              <div key={leave.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">
+                    {leave.employee?.firstName?.[0]}{leave.employee?.lastName?.[0]}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">{leave.employee?.firstName} {leave.employee?.lastName}</p>
+                    <p className="text-xs text-slate-500">{leave.leaveType}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-semibold text-slate-600 font-mono">
+                    {new Date(leave.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  </p>
+                  <p className="text-xs text-slate-400 font-mono">
+                    until {new Date(leave.endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+            )) : (
+              <p className="text-xs text-slate-400 text-center py-4">No upcoming team absences.</p>
+            )}
+          </div>
+        </div>
+
+        {/* Recent Hires */}
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2 mb-4">
+            <UserPlus className="h-4 w-4 text-slate-500" />
+            Recent Hires
+          </h3>
+          <div className="space-y-3">
+            {stats.recentHires?.length > 0 ? stats.recentHires.map(emp => (
+              <div key={emp.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">
+                    {emp.firstName?.[0]}{emp.lastName?.[0]}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">{emp.firstName} {emp.lastName}</p>
+                    <p className="text-xs text-slate-500">{emp.role}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-semibold text-slate-600">Joined</p>
+                  <p className="text-xs text-slate-400 font-mono">
+                    {new Date(emp.startDate).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            )) : (
+              <p className="text-xs text-slate-400 text-center py-4">No new hires in the last 30 days.</p>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
-};
-
-export default DashboardView;
+}

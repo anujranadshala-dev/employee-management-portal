@@ -36,23 +36,8 @@ export const api = async (url, options = {}) => {
         .catch(err => Promise.reject(err));
     }
 
+    // If no refresh is in progress, initiate one
     isRefreshing = true;
-
-    if (!isRefreshing) {
-      try {
-        const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, { method: 'POST', credentials: 'include' });
-        if (!refreshResponse.ok) throw new Error('Refresh token failed');
-        processQueue(null);
-        return api(url, { ...options, isRetry: true }); // Retry the original request
-      } catch (error) {
-        processQueue(error);
-        // Handle failed refresh (e.g., redirect to login)
-        window.location.href = '/';
-        return Promise.reject(error);
-      } finally {
-        isRefreshing = false;
-      }
-    }
   }
 
   if (!response.ok) {

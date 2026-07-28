@@ -5,8 +5,7 @@ import { protect } from '../middleware/auth.middleware.js';
 const router = Router();
 
 // @route   GET /api/dashboard/stats
-// @desc    Get aggregated stats for the dashboard
-// @access  Private
+// @desc    Get all statistics for the dashboard
 router.get('/stats', protect, getDashboardStats);
 
 export default router;

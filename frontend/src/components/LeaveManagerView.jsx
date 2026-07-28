@@ -5,24 +5,23 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { CalendarRange, Plus, Check, X, Clock, Send, Users } from 'lucide-react';
-import { fetchLeaveRequests, submitLeaveRequest, updateLeaveStatus, selectMyLeaveRequests, selectTeamLeaveRequests } from '../store/slices/leaveSlice';
-import { selectAllEmployees } from '../store/slices/employeeSlice';
+import { CalendarRange, Plus, Check, X, Clock, Send, Users, CalendarDays, UserCheck, ClipboardList } from 'lucide-react';
+import { submitLeaveRequest, updateLeaveStatus, selectMyLeaveRequests, selectPendingTeamRequests, selectTeammatesOnLeave } from '../store/slices/leaveSlice';
 import { selectAuth } from '../store/slices/authSlice';
 
 export default function LeaveManagerView() {
   const { user: session } = useSelector(selectAuth);
   const dispatch = useDispatch();
 
-  // Use the specific, memoized selectors to get the arrays directly
   const myRequests = useSelector(selectMyLeaveRequests);
-  const teamRequests = useSelector(selectTeamLeaveRequests);
-  const allEmployees = useSelector(selectAllEmployees);
+  const pendingTeamRequests = useSelector(selectPendingTeamRequests);
+  const teammatesOnLeave = useSelector(selectTeammatesOnLeave);
 
   const [leaveType, setLeaveType] = useState('Vacation');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');
+  const [activeTab, setActiveTab] = useState('history');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,6 +33,7 @@ export default function LeaveManagerView() {
     setStartDate('');
     setEndDate('');
     setReason('');
+    setActiveTab('history'); // Switch back to history view after submission
   };
 
   const handleUpdateStatus = (id, status) => {
@@ -65,11 +65,97 @@ export default function LeaveManagerView() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* New Request Form */}
-        <div className="lg:col-span-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-          <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2">
-            <Plus className="h-4 w-4 text-slate-500" />
+      {/* Sub-navigation tabs */}
+      <div className="flex border-b border-slate-200">
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+            activeTab === 'history'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+          }`}
+        >
+          <Clock className="h-4 w-4" />
+          My Leave History
+        </button>
+        <button
+          onClick={() => setActiveTab('team')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+            activeTab === 'team'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+          }`}
+        >
+          <UserCheck className="h-4 w-4" />
+          Teammates on Leave
+        </button>
+        <button
+          onClick={() => setActiveTab('apply')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+            activeTab === 'apply'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+          }`}
+        >
+          <Plus className="h-4 w-4" />
+          Apply for Leave
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        {activeTab === 'history' && (
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2 mb-4">
+              <Clock className="h-4 w-4 text-slate-500" />
+              My Leave History
+            </h3>
+            <div className="space-y-3 overflow-y-auto max-h-[60vh]">
+              {myRequests.map(req => (
+                <div key={req.id} className="p-4 rounded-lg border border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <div className="font-bold text-slate-800">{req.leaveType}</div>
+                    <div className="text-xs text-slate-500 font-mono">
+                      {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <StatusBadge status={req.status} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'team' && (
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2 mb-4">
+              <UserCheck className="h-4 w-4 text-slate-500" />
+              Teammates on Leave (Approved)
+            </h3>
+            <div className="space-y-3 overflow-y-auto max-h-[60vh]">
+              {teammatesOnLeave.length > 0 ? teammatesOnLeave.map(req => (
+                <div key={req.id} className="p-4 rounded-lg border border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <div className="font-bold text-slate-800">{req.employeeName}</div>
+                    <div className="text-xs text-slate-500 font-mono">
+                      {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div className="font-semibold text-xs text-slate-600">{req.leaveType}</div>
+                </div>
+              )) : (
+                <p className="text-center py-8 text-slate-400 text-xs">No teammates have approved upcoming leave.</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'apply' && (
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2 mb-4">
+              <Plus className="h-4 w-4 text-slate-500" />
             New Leave Request
           </h3>
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
@@ -123,50 +209,19 @@ export default function LeaveManagerView() {
               Submit Request
             </button>
           </form>
-        </div>
-
-        {/* My Leave History */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-          <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2">
-            <Clock className="h-4 w-4 text-slate-500" />
-            My Leave History
-          </h3>
-          <div className="space-y-3 overflow-y-auto">
-            {myRequests.map(req => (
-              <div key={req.id} className="p-4 rounded-lg border border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <div className="font-bold text-slate-800">{req.leaveType}</div>
-                  <div className="text-xs text-slate-500 font-mono">
-                    {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <StatusBadge status={req.status} />
-                  {req.status === 'Pending' && (
-                    <div className="flex gap-2">
-                      <button onClick={() => handleUpdateStatus(req.id, 'Approved')} className="p-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-full">
-                        <Check className="h-4 w-4" />
-                      </button>
-                      <button onClick={() => handleUpdateStatus(req.id, 'Rejected')} className="p-2 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-full">
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
           </div>
-        </div>
+        )}
+      </div>
 
-        {/* Team Requests (for Managers/Admins) */}
-        {(session.isAdmin || session.isDepartmentManager) && (
-          <div className="lg:col-span-3 bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+      {/* Actionable Team Requests (for Managers/Admins) */}
+      {(session.isAdmin || session.isDepartmentManager) && pendingTeamRequests.length > 0 && (
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
             <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2">
-              <Clock className="h-4 w-4 text-slate-500" />
-              Team Leave Requests
+              <ClipboardList className="h-4 w-4 text-slate-500" />
+              Team Leave Requests for Approval
             </h3>
-            <div className="space-y-3 overflow-y-auto">
-              {teamRequests.map(req => (
+            <div className="space-y-3 overflow-y-auto max-h-[60vh]">
+              {pendingTeamRequests.map(req => (
                 <div key={req.id} className="p-4 rounded-lg border border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
                     <div className="font-bold text-slate-800">{req.leaveType}</div>
@@ -177,23 +232,20 @@ export default function LeaveManagerView() {
                   </div>
                   <div className="flex items-center gap-3">
                     <StatusBadge status={req.status} />
-                    {req.status === 'Pending' && (
-                      <div className="flex gap-2">
-                        <button onClick={() => handleUpdateStatus(req.id, 'Approved')} className="p-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-full">
-                          <Check className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => handleUpdateStatus(req.id, 'Rejected')} className="p-2 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-full">
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex gap-2">
+                      <button onClick={() => handleUpdateStatus(req.id, 'Approved')} className="p-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-full" title="Approve">
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => handleUpdateStatus(req.id, 'Rejected')} className="p-2 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-full" title="Reject">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 }

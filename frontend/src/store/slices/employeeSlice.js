@@ -127,6 +127,7 @@ export default employeeSlice.reducer;
 export const {
   selectAll: selectAllEmployees,
   selectById: selectEmployeeById,
+  selectEntities: selectEmployeeEntities,
   selectIds: selectEmployeeIds,
 } = employeesAdapter.getSelectors((state) => state.employees);
 
@@ -144,6 +145,61 @@ export const selectVisibleEmployees = createSelector(
         (deptFilter === 'All' || employee?.department === deptFilter) &&
         (statusFilter === 'All' || employee?.status === statusFilter)
       );
+    });
+
+    return filtered.sort((a, b) => {
+      const direction = sortOrder === 'asc' ? 1 : -1;
+      const aValue = a[sortField] ?? '';
+      const bValue = b[sortField] ?? '';
+      return aValue > bValue ? direction : aValue < bValue ? -direction : 0;
+    });
+  }
+);
+
+// Memoized selector to get the current user's team
+export const selectMyTeam = createSelector(
+  [selectAllEmployees, (state) => state.auth.user], // Depends on all employees and the current user session
+  (employees, session) => {
+    if (!session || !employees) {
+      return [];
+    }
+
+    const myDepartment = session.department;
+
+    // Find the manager of the user's department
+    const departmentManager = employees.find(
+      (emp) => emp.department === myDepartment && emp.isDepartmentManager
+    );
+
+    // Find all employees in the department
+    const departmentMembers = employees.filter(
+      (emp) => emp.department === myDepartment
+    );
+
+    // If the current user is the manager, they are already included.
+    // If not, we need to make sure they are included if they are viewing their own team.
+    // The simplest way is to just return all members of the department.
+    // The manager will be one of them, and the user will see themselves.
+    // We can then sort to ensure the manager is always first.
+
+    // Return the manager first, followed by the rest of the team
+    return departmentMembers.sort((a, b) => {
+      if (a.isDepartmentManager) return -1;
+      if (b.isDepartmentManager) return 1;
+      return a.firstName.localeCompare(b.firstName);
+    });
+  }
+);
+
+// Memoized selector to get the current user's team, filtered and sorted
+export const selectMyTeamFilteredAndSorted = createSelector(
+  [selectMyTeam, selectEmployeeFilters],
+  (myTeam, filters) => {
+    const { searchTerm, sortField, sortOrder } = filters;
+
+    const filtered = myTeam?.filter((employee) => {
+      const fullName = `${employee?.firstName ?? ''} ${employee?.lastName ?? ''}`.toLowerCase();
+      return fullName.includes(searchTerm.toLowerCase());
     });
 
     return filtered.sort((a, b) => {

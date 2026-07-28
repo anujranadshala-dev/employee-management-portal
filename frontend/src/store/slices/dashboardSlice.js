@@ -17,9 +17,12 @@ export const fetchDashboardStats = createAsyncThunk(
 
 const initialState = {
   stats: {
-    totalEmployees: 0,
-    onLeave: 0,
-    averageTenure: 0,
+    totalEmployees: 0, // number
+    onLeave: 0, // number
+    upcomingLeave: [], // array of leave objects
+    recentHires: [], // array of employee objects
+    latestAnnouncements: [], // array of announcement objects
+    departmentCounts: [], // array for chart
   },
   status: 'idle',
   error: null,

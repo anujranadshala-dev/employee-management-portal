@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Search, Plus, SlidersHorizontal, Trash2, Edit3, ShieldAlert, Award, Phone, Mail, Calendar, DollarSign, ExternalLink } from 'lucide-react';import { setFilters, setSearchTerm, selectEmployeeFilters } from '../store/slices/employeeSlice';
+import { Search, Plus, SlidersHorizontal, Trash2, Edit3, ShieldAlert, Award, Phone, Mail, Calendar, DollarSign, ExternalLink, Users, UserCheck } from 'lucide-react';
+import { setFilters, setSearchTerm, selectEmployeeFilters, selectMyTeamFilteredAndSorted } from '../store/slices/employeeSlice';
 import { selectAuth } from '../store/slices/authSlice';
 
 export default function EmployeeDirectoryView({
@@ -18,6 +19,10 @@ export default function EmployeeDirectoryView({
   const dispatch = useDispatch();
   const { searchTerm, deptFilter, statusFilter, sortField, sortOrder } = useSelector(selectEmployeeFilters);
   const [selectedEmployee, setSelectedEmployee] = React.useState(null);
+  const [activeTab, setActiveTab] = useState('all');
+  const myTeamFiltered = useSelector(selectMyTeamFilteredAndSorted);
+
+  const employeesToDisplay = activeTab === 'all' ? employees : myTeamFiltered;
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -36,6 +41,31 @@ export default function EmployeeDirectoryView({
 
   return (
     <div className="space-y-6" id="directory-root">
+      {/* Sub-navigation tabs */}
+      <div className="flex border-b border-slate-200">
+        <button
+          onClick={() => setActiveTab('all')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+            activeTab === 'all'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+          }`}
+        >
+          <Users className="h-4 w-4" />
+          All Employees
+        </button>
+        <button
+          onClick={() => setActiveTab('my-team')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+            activeTab === 'my-team'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+          }`}
+        >
+          <UserCheck className="h-4 w-4" />
+          My Team
+        </button>
+      </div>
       
       {/* 1. Filter bar */}
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
@@ -70,8 +100,8 @@ export default function EmployeeDirectoryView({
               Apply Search
             </button>
 
-            {session.isAdmin && ( // Only Admins can add new employees
-              <button
+            {session.isAdmin && activeTab === 'all' && ( // Only Admins can add new employees, and only on the 'all' tab
+              <button 
                 type="button"
                 onClick={onAddClick}
                 id="btn-add-employee"
@@ -83,65 +113,80 @@ export default function EmployeeDirectoryView({
           </div>
         </form>
 
-        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-4 text-xs font-bold text-slate-500 uppercase tracking-tighter">
-          <div className="flex flex-wrap gap-4 items-center">
-            
-            {/* Department select */}
-            <div className="flex items-center gap-1.5 normal-case tracking-normal text-slate-600 font-semibold">
-              <span>Department:</span>
-              <select
-                id="filter-dept"
-                value={deptFilter}
-                onChange={(e) => dispatch(setFilters({ deptFilter: e.target.value }))}
-                className="bg-slate-100 border border-slate-200 text-slate-700 px-3 py-1.5 rounded-md focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 text-xs font-medium cursor-pointer"
-              >
-                <option value="All">All Departments</option>
-                <option value="Engineering">Engineering</option>
-                <option value="Design">Design</option>
-                <option value="Marketing">Marketing</option>
-                <option value="Sales">Sales</option>
-                <option value="HR">HR</option>
-                <option value="Finance">Finance</option>
-              </select>
+        {activeTab === 'all' && (
+          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-4 text-xs font-bold text-slate-500 uppercase tracking-tighter">
+            <div className="flex flex-wrap gap-4 items-center">
+              
+              {/* Department select */}
+              <div className="flex items-center gap-1.5 normal-case tracking-normal text-slate-600 font-semibold">
+                <span>Department:</span>
+                <select
+                  id="filter-dept"
+                  value={deptFilter}
+                  onChange={(e) => dispatch(setFilters({ deptFilter: e.target.value }))}
+                  className="bg-slate-100 border border-slate-200 text-slate-700 px-3 py-1.5 rounded-md focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 text-xs font-medium cursor-pointer"
+                >
+                  <option value="All">All Departments</option>
+                  <option value="Engineering">Engineering</option>
+                  <option value="Design">Design</option>
+                  <option value="Marketing">Marketing</option>
+                  <option value="Sales">Sales</option>
+                  <option value="HR">HR</option>
+                  <option value="Finance">Finance</option>
+                </select>
+              </div>
+
+              {/* Status select */}
+              <div className="flex items-center gap-1.5 normal-case tracking-normal text-slate-600 font-semibold">
+                <span>Status:</span>
+                <select
+                  id="filter-status"
+                  value={statusFilter}
+                  onChange={(e) => dispatch(setFilters({ statusFilter: e.target.value }))}
+                  className="bg-slate-100 border border-slate-200 text-slate-700 px-3 py-1.5 rounded-md focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 text-xs font-medium cursor-pointer"
+                >
+                  <option value="All">All Statuses</option>
+                  <option value="Active">Active</option>
+                  <option value="Remote">Remote</option>
+                  <option value="On Leave">On Leave</option>
+                  <option value="Suspended">Suspended</option>
+                </select>
+              </div>
             </div>
 
-            {/* Status select */}
-            <div className="flex items-center gap-1.5 normal-case tracking-normal text-slate-600 font-semibold">
-              <span>Status:</span>
-              <select
-                id="filter-status"
-                value={statusFilter}
-                onChange={(e) => dispatch(setFilters({ statusFilter: e.target.value }))}
-                className="bg-slate-100 border border-slate-200 text-slate-700 px-3 py-1.5 rounded-md focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 text-xs font-medium cursor-pointer"
-              >
-                <option value="All">All Statuses</option>
-                <option value="Active">Active</option>
-                <option value="Remote">Remote</option>
-                <option value="On Leave">On Leave</option>
-                <option value="Suspended">Suspended</option>
-              </select>
+            <div className="flex items-center gap-2 font-mono text-[10px] text-slate-400 font-normal">
+              <span>Found {employeesToDisplay.length} records</span>
             </div>
           </div>
-
-          <div className="flex items-center gap-2 font-mono text-[10px] text-slate-400 font-normal">
-            <span>Found {employees.length} records</span>
+        )}
+        {activeTab === 'my-team' && (
+          <div className="flex flex-wrap items-center justify-end gap-4 border-t border-slate-100 pt-4 text-xs font-bold text-slate-500 uppercase tracking-tighter">
+            <div className="flex items-center gap-2 font-mono text-[10px] text-slate-400 font-normal">
+              <span>Found {employeesToDisplay.length} records</span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* 2. Grid List */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {employees.length === 0 ? (
+        {employeesToDisplay.length === 0 ? (
           <div className="col-span-full bg-white p-12 text-center rounded-2xl border border-slate-200 text-slate-400 text-sm space-y-2">
             <SlidersHorizontal className="h-8 w-8 mx-auto text-slate-300" />
             <p>No employee profiles matched the active query filters.</p>
           </div>
         ) : (
-          employees.map(emp => (
+          employeesToDisplay.map(emp => (
             <div 
               key={emp.id} 
               id={`emp-card-${emp.id}`}
-              className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-slate-300 transition-all space-y-4 flex flex-col justify-between"
+              className={`rounded-xl border p-5 shadow-sm hover:shadow-md transition-all space-y-4 flex flex-col justify-between ${
+                emp.isAdmin
+                  ? 'bg-rose-50 border-rose-200 hover:border-rose-300'
+                  : emp.isDepartmentManager
+                  ? 'bg-indigo-50 border-indigo-200 hover:border-indigo-300'
+                  : 'bg-white border-slate-200 hover:border-slate-300'
+              }`}
             >
               
               {/* Card Header Info */}
@@ -169,6 +214,16 @@ export default function EmployeeDirectoryView({
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 font-medium truncate">{emp.role}</p>
+                  {emp.isAdmin && (
+                    <span className="text-[9px] font-bold font-mono tracking-wider uppercase bg-rose-600 text-white px-2 py-0.5 rounded-full shrink-0 mt-1.5 inline-block">
+                      HR Admin
+                    </span>
+                  )}
+                  {emp.isDepartmentManager && !emp.isAdmin && (
+                    <span className="text-[9px] font-bold font-mono tracking-wider uppercase bg-indigo-600 text-white px-2 py-0.5 rounded-full shrink-0 mt-1.5 inline-block">
+                      Manager
+                    </span>
+                  )}
                   
                   {/* Department Badge */}
                   <span className="inline-block text-[10px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md mt-1.5">

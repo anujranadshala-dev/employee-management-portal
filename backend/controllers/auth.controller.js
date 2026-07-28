@@ -18,6 +18,7 @@ export const login = async (req, res) => {
         name: user.firstName + ' ' + user.lastName,
         role: user.role,
         isAdmin: user.isAdmin,
+        department: user.department,
         isDepartmentManager: user.isDepartmentManager,
       };
 
@@ -114,6 +115,7 @@ export const refreshToken = async (req, res) => {
       name: user.firstName + ' ' + user.lastName,
       role: user.role,
       isAdmin: user.isAdmin,
+      department: user.department,
       isDepartmentManager: user.isDepartmentManager,
     };
 

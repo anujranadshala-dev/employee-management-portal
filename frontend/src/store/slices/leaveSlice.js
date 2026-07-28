@@ -1,5 +1,6 @@
 import { createSlice, createEntityAdapter, createSelector, createAsyncThunk } from '@reduxjs/toolkit';
 import { api } from '../../utils/api';
+import { selectEmployeeEntities } from './employeeSlice';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -96,20 +97,66 @@ export const selectLeaveData = createSelector(
   (requests, session) => {
     if (!session) return { myRequests: [], teamRequests: [] };
 
-    // Filter requests submitted by the current user
     const myRequests = requests.filter(r => r.employeeId === session.id);
 
-    // For managers and admins, get all requests that are not their own.
-    // A future improvement could be to filter by department for managers.
-    let teamRequests = [];
-    if (session.isDepartmentManager || session.isAdmin) {
-      teamRequests = requests; // For now, show all requests to authorized users
-    }
-
-    return { myRequests, teamRequests };
+    return { myRequests };
   }
 );
 
 // It's good practice to create separate, more specific selectors for components to use.
-export const selectMyLeaveRequests = (state) => selectLeaveData(state, state.auth.user).myRequests;
-export const selectTeamLeaveRequests = (state) => selectLeaveData(state, state.auth.user).teamRequests;
+export const selectMyLeaveRequests = createSelector(
+  [selectAllLeaveRequests, (state) => state.auth.user],
+  (requests, session) => {
+    if (!session) return [];
+    return requests.filter(r => r.employeeId === session.id);
+  }
+);
+
+// Selects pending requests that the current user needs to action.
+export const selectPendingTeamRequests = createSelector(
+  [selectAllLeaveRequests, selectEmployeeEntities, (state) => state.auth.user],
+  (allRequests, employeeEntities, session) => {
+    if (!session || (!session.isAdmin && !session.isDepartmentManager)) {
+      return [];
+    }
+
+    return allRequests.filter(req => {
+      if (req.status !== 'Pending') return false;
+      const employee = employeeEntities[req.employeeId];
+      if (!employee) return false;
+
+      // Admins can see ALL pending requests.
+      if (session.isAdmin) {
+        return true;
+      }
+
+      // Department Managers see pending requests from their own department (excluding other managers).
+      if (session.isDepartmentManager && employee.department === session.department && !employee.isDepartmentManager && req.employeeId !== session.id) {
+        return true;
+      }
+
+      return false;
+    });
+  }
+);
+
+// Selector to get approved and upcoming leave for the user's department colleagues
+export const selectTeammatesOnLeave = createSelector(
+  [selectAllLeaveRequests, selectEmployeeEntities, (state) => state.auth.user],
+  (allRequests, employeeEntities, session) => {
+    if (!session || !allRequests.length) return [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Consider leave from the start of today
+
+    return allRequests.filter(req => {
+      const employee = employeeEntities[req.employeeId];
+      return (
+        employee &&
+        employee.department === session.department && // Teammate is in the same department
+        req.employeeId !== session.id && // Not the user's own leave
+        req.status === 'Approved' && // Only show approved leave
+        new Date(req.endDate) >= today // The leave period is current or in the future
+      );
+    });
+  }
+);
