@@ -24,13 +24,6 @@ export default function LeaveManagerView() {
   const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');
 
-  const upcomingTeamLeave = useMemo(() => {
-    // Show all approved leave for team members
-    return teamRequests.filter(req =>
-      req.status === 'Approved' && new Date(req.startDate) >= new Date()
-    );
-  }, [teamRequests]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!startDate || !endDate) {
@@ -138,7 +131,7 @@ export default function LeaveManagerView() {
             <Clock className="h-4 w-4 text-slate-500" />
             My Leave History
           </h3>
-          <div className="space-y-3 max-h-[400px] overflow-y-auto">
+          <div className="space-y-3 overflow-y-auto">
             {myRequests.map(req => (
               <div key={req.id} className="p-4 rounded-lg border border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
@@ -165,33 +158,6 @@ export default function LeaveManagerView() {
           </div>
         </div>
 
-        {/* Upcoming Team Leave */}
-        <div className="lg:col-span-3 bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-          <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2">
-            <Users className="h-4 w-4 text-slate-500" />
-            Upcoming Team Leave
-          </h3>
-          <div className="space-y-3 max-h-[200px] overflow-y-auto">
-            {upcomingTeamLeave.length > 0 ? upcomingTeamLeave.map(req => (
-              <div key={req.id} className="p-4 rounded-lg border border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <div className="font-bold text-slate-800">{req?.employeeName}</div>
-                  <div className="text-xs text-slate-500 font-mono">
-                    {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <StatusBadge status={req.status} />
-                </div>
-              </div>
-            )) : (
-              <div className="text-center py-8 text-slate-400 text-xs">
-                No approved upcoming leave for your teammates.
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Team Requests (for Managers/Admins) */}
         {(session.isAdmin || session.isDepartmentManager) && (
           <div className="lg:col-span-3 bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
@@ -199,7 +165,7 @@ export default function LeaveManagerView() {
               <Clock className="h-4 w-4 text-slate-500" />
               Team Leave Requests
             </h3>
-            <div className="space-y-3 max-h-[400px] overflow-y-auto">
+            <div className="space-y-3 overflow-y-auto">
               {teamRequests.map(req => (
                 <div key={req.id} className="p-4 rounded-lg border border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>

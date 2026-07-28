@@ -1,61 +1,71 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { fetchAnnouncements } from './announcementsSlice';
-import { fetchEmployees } from './employeeSlice';
-import { fetchDashboardStats } from './dashboardSlice';
-import { fetchLeaveRequests } from './leaveSlice';
+import { api } from '../../utils/api';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
-// Async thunk for logging in
+const initialState = {
+  user: null,
+  isAuthenticated: false,
+  status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
+  error: null,
+};
+
+// Async thunk for user login
 export const login = createAsyncThunk(
   'auth/login',
-  async (credentials, { dispatch, rejectWithValue }) => {
+  async ({ email, password }, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const response = await api(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials),
+        body: JSON.stringify({ email, password }),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Login failed.');
-      }
-
-      const { token, user } = await response.json();
-      
-      // Store token and user for session persistence
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('user', JSON.stringify(user));
-
-      // --- Dispatch data-fetching actions upon successful login ---
-      dispatch(fetchEmployees());
-      dispatch(fetchAnnouncements());
-      dispatch(fetchDashboardStats());
-      dispatch(fetchLeaveRequests());
-
-      return { user, token };
+      // The backend now sets a cookie and returns the user data in the response body.
+      return await response.json();
     } catch (error) {
       return rejectWithValue(error.message);
     }
   }
 );
 
+// Thunk to check auth status from localStorage on app load
+// This now hits a backend endpoint to verify the cookie
+export const checkAuthStatus = createAsyncThunk(
+  'auth/checkAuthStatus',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api(`${API_BASE_URL}/auth/me`);
+      return await response.json();
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Async thunk for user logout
+export const logout = createAsyncThunk(
+  'auth/logout',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api(`${API_BASE_URL}/auth/logout`, {
+        method: 'POST',
+      });
+      return await response.json();
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
 const authSlice = createSlice({
   name: 'auth',
-  initialState: {
-    user: null,
-    token: null,
-    isAuthenticated: false,
-    status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
-    error: null,
-  },
+  initialState,
   reducers: {
     logout: (state) => {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('user');
       state.user = null;
-      state.token = null;
       state.isAuthenticated = false;
       state.status = 'idle';
       state.error = null;
@@ -70,17 +80,37 @@ const authSlice = createSlice({
       .addCase(login.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.isAuthenticated = true;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
+        state.user = action.payload;
+        state.error = null;
       })
       .addCase(login.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+        state.user = null;
+        state.isAuthenticated = false;
+      })
+      // Handle logout thunk lifecycle
+      .addCase(logout.fulfilled, (state) => {
+        state.user = null;
+        state.isAuthenticated = false;
+        state.status = 'idle';
+        state.error = null;
+      })
+      .addCase(checkAuthStatus.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(checkAuthStatus.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.isAuthenticated = true;
+        state.user = action.payload;
+      })
+      .addCase(checkAuthStatus.rejected, (state) => {
+        state.status = 'failed';
+        state.isAuthenticated = false;
+        state.user = null;
       });
   },
 });
-
-export const { logout } = authSlice.actions;
 
 export const selectAuth = (state) => state.auth;
 

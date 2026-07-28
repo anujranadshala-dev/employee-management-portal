@@ -129,14 +129,6 @@ export default function EmployeeDirectoryView({
         </div>
       </div>
 
-      {/* Role Notice */}
-      {!session.isAdmin && !session.isDepartmentManager && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex items-center gap-2">
-          <ShieldAlert className="h-4.5 w-4.5 text-amber-600 shrink-0" />
-          <span><strong>Employee view:</strong> You can view the directory only.</span>
-        </div>
-      )}
-
       {/* 2. Grid List */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {employees.length === 0 ? (
@@ -243,7 +235,7 @@ export default function EmployeeDirectoryView({
                 </button>
 
                 <div className="flex gap-1">
-                  {(session.isAdmin || session.isDepartmentManager) && ( // Admins and Managers can edit
+                  {session.isAdmin && ( // Only Admins can edit
                     <button
                       onClick={() => onEditClick(emp)}
                       title="Edit Profile"

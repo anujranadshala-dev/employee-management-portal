@@ -1,4 +1,5 @@
 import { createSlice, createEntityAdapter, createSelector, createAsyncThunk } from '@reduxjs/toolkit';
+import { api } from '../../utils/api';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -7,15 +8,7 @@ export const fetchLeaveRequests = createAsyncThunk(
   'leave/fetchRequests',
   async (_, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/leave`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch leave requests.');
-      }
+      const response = await api(`${API_BASE_URL}/leave`);
       return await response.json();
     } catch (error) {
       return rejectWithValue(error.message);
@@ -28,18 +21,10 @@ export const updateLeaveStatus = createAsyncThunk(
   'leave/updateStatus',
   async ({ id, status }, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/leave/${id}/status`, {
+      const response = await api(`${API_BASE_URL}/leave/${id}/status`, {
         method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ status }),
       });
-      if (!response.ok) {
-        throw new Error('Failed to update leave request status.');
-      }
       return await response.json();
     } catch (error) {
       return rejectWithValue(error.message);
@@ -52,19 +37,10 @@ export const submitLeaveRequest = createAsyncThunk(
   'leave/submitRequest',
   async (requestData, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/leave`, {
+      const response = await api(`${API_BASE_URL}/leave`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(requestData),
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to submit leave request.');
-      }
       return await response.json();
     } catch (error) {
       return rejectWithValue(error.message);

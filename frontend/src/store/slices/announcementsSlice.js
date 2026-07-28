@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { api } from '../../utils/api';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -7,13 +8,7 @@ export const fetchAnnouncements = createAsyncThunk(
   'announcements/fetchAnnouncements',
   async (_, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/announcements`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error('Server error');
+      const response = await api(`${API_BASE_URL}/announcements`);
       return await response.json();
     } catch (error) {
       return rejectWithValue(error.message);
@@ -26,16 +21,10 @@ export const postAnnouncement = createAsyncThunk(
   'announcements/postAnnouncement',
   async (announcementData, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/announcements`, {
+      const response = await api(`${API_BASE_URL}/announcements`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(announcementData),
       });
-      if (!response.ok) throw new Error('Could not post announcement.');
       return await response.json();
     } catch (error) {
       return rejectWithValue(error.message);

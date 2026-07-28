@@ -26,28 +26,56 @@ import { useSelector, useDispatch } from 'react-redux';
 import { fetchAnnouncements, postAnnouncement } from './store/slices/announcementsSlice';
 import { fetchEmployees, addEmployee, updateEmployee, deleteEmployee, selectAllEmployees, selectVisibleEmployees } from './store/slices/employeeSlice';
 import { resetUi, openEmployeeForm, setSubmittingAnnouncement } from './store/slices/uiSlice';
+import { fetchLeaveRequests } from './store/slices/leaveSlice';
 import { logout, selectAuth } from './store/slices/authSlice';
+import { checkAuthStatus } from './store/slices/authSlice'; // Assuming this new thunk exists in authSlice.js
 
 export default function App() {
   const dispatch = useDispatch();
   const { isAuthenticated, user: session } = useSelector(selectAuth);
+  const [isAuthLoading, setIsAuthLoading] = useState(true); // New state to manage auth loading
 
   // App Data State
   const employeesList = useSelector(selectAllEmployees);
   const visibleEmployees = useSelector(selectVisibleEmployees);
 
   const navigate = useNavigate();
+  const location = useLocation(); // Get current location to prevent redirect loops
+
+  // Effect to check authentication status on initial load
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        // .unwrap() will cause the promise to reject if the thunk is rejected.
+        await dispatch(checkAuthStatus()).unwrap();
+      } catch (err) {
+        // This catch block handles the expected 401 error when no user is logged in.
+        // It prevents the error from being logged to the console as an unhandled promise rejection.
+        // The `checkAuthStatus.rejected` reducer in authSlice.js will correctly set isAuthenticated to false.
+      } finally {
+        setIsAuthLoading(false); // Set loading to false after auth check
+      }
+    };
+    initializeAuth();
+  }, [dispatch]);
+
 
   useEffect(() => {
     // On initial load (or after login), fetch all necessary data
-    if (!isAuthenticated) {
+    if (isAuthenticated) {
+      // If authenticated, load all core data for the portal
+      dispatch(fetchEmployees());
+      dispatch(fetchAnnouncements());
+      dispatch(fetchLeaveRequests());
+    } else {
       // If not authenticated, redirect to login
       navigate('/');
     }
-  }, [isAuthenticated, dispatch, navigate]);
+  }, [isAuthenticated, navigate, dispatch]);
 
-  const handleLogout = () => {
-    dispatch(logout());
+  const handleLogout = async () => {
+    // Dispatch the async thunk to clear the backend session cookie
+    await dispatch(logout());
     dispatch(resetUi());
     navigate('/');
   };
@@ -58,6 +86,10 @@ export default function App() {
     try {
       const isEdit = !!employeeId;
       if (isEdit) {
+        if (!session.isAdmin) { // Only Admins can edit
+          alert('Unauthorized action: You do not have permission to edit employee profiles.');
+          return false;
+        }
         await dispatch(updateEmployee({ id: employeeId, changes: formData })).unwrap();
       }
       else {
@@ -95,7 +127,7 @@ export default function App() {
 
   // Post Corporate Memo action
   const handlePostAnnouncement = async (memoData) => {
-    if (!session || (!session.isAdmin && !session.isDepartmentManager)) return; // Admins and Managers can post
+    if (!session || !session.isAdmin) return; // Only Admins can post
     dispatch(setSubmittingAnnouncement(true));
     try {
       // The backend will handle ID, date, etc.
@@ -119,6 +151,11 @@ export default function App() {
     dispatch(openEmployeeForm({ employeeId: emp.id }));
   };
 
+  // Show a loading indicator while authentication status is being determined
+  if (isAuthLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50">Loading application...</div>;
+  }
+
   // Render Login view if no session exists
   if (!session) {
     return (
@@ -140,8 +177,8 @@ export default function App() {
           element={
             <PortalLayout
               session={session}
-              employeesList={employeesList}
               handleLogout={handleLogout}
+              employeesList={employeesList}
             >
               {/* The AppRoutes component is passed as a child to be rendered by the Outlet */}
               <AppRoutes
@@ -195,7 +232,7 @@ function PortalLayout({ session, handleLogout, employeesList, children }) {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans select-none text-slate-900" id="portal-root">
+    <div className="h-screen bg-slate-50 font-sans select-none text-slate-900 overflow-hidden" id="portal-root">
       <div className="flex min-h-screen">
         {/* DESKTOP SIDE NAVIGATION */}
         <aside className="hidden lg:flex fixed inset-y-0 left-0 w-60 flex-col bg-slate-900 text-slate-300 border-r border-slate-800 z-30">
@@ -250,22 +287,11 @@ function PortalLayout({ session, handleLogout, employeesList, children }) {
               </button>
             </div>
           </div>
-
-          {/* System status widget */}
-          <div className="p-4 bg-slate-950/40 border-t border-slate-800/50">
-            <div className="bg-indigo-950/50 rounded-lg p-3 border border-indigo-900/50">
-              <div className="text-xs text-indigo-300 font-bold mb-1 font-mono uppercase tracking-wider text-[10px]">System Health</div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
-                <span className="text-[10px] text-indigo-200 font-semibold font-mono">All REST APIs operational</span>
-              </div>
-            </div>
-          </div>
         </aside>
 
-        <div className="flex-1 flex flex-col lg:ml-60 min-h-screen">
+        <div className="flex-1 flex flex-col lg:ml-60 h-screen">
           {/* GLOBAL HEADER */}
-          <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 flex-shrink-0 z-20 shadow-xs">
+          <header className="h-16 bg-white/80 backdrop-blur-sm border-b border-slate-200 flex items-center justify-between px-6 flex-shrink-0 z-20">
             <div className="flex items-center gap-8">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center text-white font-bold text-lg">E</div>
@@ -337,7 +363,7 @@ function PortalLayout({ session, handleLogout, employeesList, children }) {
           </AnimatePresence>
 
           {/* PRIMARY CONTENT PANEL */}
-          <main className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 relative">
+          <main className="flex-1 overflow-y-auto p-6 md:p-8">
             <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-200 pb-3 mb-2">
               <div>
                 <span className="font-semibold text-slate-600">Employee Portal</span> &gt; <span className="capitalize text-slate-800 font-semibold">{currentView}</span>

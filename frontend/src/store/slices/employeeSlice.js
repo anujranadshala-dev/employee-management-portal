@@ -1,4 +1,5 @@
 import { createSlice, createEntityAdapter, createSelector, createAsyncThunk } from '@reduxjs/toolkit';
+import { api } from '../../utils/api';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -7,14 +8,7 @@ export const fetchEmployees = createAsyncThunk(
   'employees/fetchEmployees',
   async (_, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/employees`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      if (!response.ok) throw new Error('Server error');
+      const response = await api(`${API_BASE_URL}/employees`);
       return await response.json();
     } catch (error) {
       return rejectWithValue(error.message);
@@ -27,16 +21,10 @@ export const addEmployee = createAsyncThunk(
   'employees/addEmployee',
   async (employeeData, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/employees`, {
+      const response = await api(`${API_BASE_URL}/employees`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(employeeData),
       });
-      if (!response.ok) throw new Error('Could not add employee.');
       return await response.json();
     } catch (error) {
       return rejectWithValue(error.message);
@@ -49,16 +37,10 @@ export const updateEmployee = createAsyncThunk(
   'employees/updateEmployee',
   async ({ id, changes }, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/employees/${id}`, {
+      const response = await api(`${API_BASE_URL}/employees/${id}`, {
         method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(changes),
       });
-      if (!response.ok) throw new Error('Could not update employee.');
       return await response.json();
     } catch (error) {
       return rejectWithValue(error.message);
@@ -71,17 +53,9 @@ export const deleteEmployee = createAsyncThunk(
   'employees/deleteEmployee',
   async (employeeId, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/employees/${employeeId}`, {
+      await api(`${API_BASE_URL}/employees/${employeeId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        }
       });
-      // A successful DELETE might not return a body, so we check for a 204 (No Content) or 200 status
-      if (!response.ok) {
-        throw new Error('Could not delete employee.');
-      }
       // On success, we return the ID so the reducer knows which employee to remove
       return employeeId;
     } catch (error) {

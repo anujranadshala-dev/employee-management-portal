@@ -9,12 +9,14 @@ import { useForm } from 'react-hook-form';
 import { X, Save, AlertCircle } from 'lucide-react';
 import { selectIsEmployeeFormOpen, selectEditingEmployeeId, closeEmployeeForm } from '../store/slices/uiSlice';
 import { selectEmployeeById } from '../store/slices/employeeSlice';
+import { selectAuth } from '../store/slices/authSlice';
 
 export default function EmployeeFormModal({ onSave }) {
   const dispatch = useDispatch();
   const isOpen = useSelector(selectIsEmployeeFormOpen);
   const editingEmployeeId = useSelector(selectEditingEmployeeId);
   const employee = useSelector((state) => selectEmployeeById(state, editingEmployeeId));
+  const { user: session } = useSelector(selectAuth);
 
   const {
     register,
@@ -282,21 +284,23 @@ export default function EmployeeFormModal({ onSave }) {
           </div>
 
           {/* --- PERMISSION LEVEL FIELD --- */}
-          <div className="space-y-1 border-t border-slate-100 pt-5">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-tighter">System Permission Level *</label>
-            <select
-              id="form-permissionLevel"
-              className="w-full px-3.5 py-2 rounded-lg text-sm border border-slate-200 bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer transition-all"
-              {...register('permissionLevel')}
-            >
-              <option value="EMPLOYEE">Standard Employee (View-only access)</option>
-              <option value="DEPT_MANAGER">Department Manager (Can edit profiles)</option>
-              <option value="HR_ADMIN">HR Admin (Full control)</option>
-            </select>
-            <p className="text-[11px] text-slate-400 mt-1.5">
-              This setting controls what the user can see and do within the portal. It is separate from their job title.
-            </p>
-          </div>
+          {session.isAdmin && (
+            <div className="space-y-1 border-t border-slate-100 pt-5">
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-tighter">System Permission Level *</label>
+              <select
+                id="form-permissionLevel"
+                className="w-full px-3.5 py-2 rounded-lg text-sm border border-slate-200 bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer transition-all"
+                {...register('permissionLevel')}
+              >
+                <option value="EMPLOYEE">Standard Employee (View-only access)</option>
+                <option value="DEPT_MANAGER">Department Manager (Can edit profiles)</option>
+                <option value="HR_ADMIN">HR Admin (Full control)</option>
+              </select>
+              <p className="text-[11px] text-slate-400 mt-1.5">
+                This setting controls what the user can see and do within the portal. It is separate from their job title.
+              </p>
+            </div>
+          )}
 
           {/* Row 4: Status & Salary */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

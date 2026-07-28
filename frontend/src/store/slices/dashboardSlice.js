@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { api } from '../../utils/api';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -6,11 +7,7 @@ export const fetchDashboardStats = createAsyncThunk(
   'dashboard/fetchStats',
   async (_, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE_URL}/dashboard/stats`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) throw new Error('Failed to fetch dashboard stats.');
+      const response = await api(`${API_BASE_URL}/dashboard/stats`);
       return await response.json();
     } catch (error) {
       return rejectWithValue(error.message);

@@ -7,26 +7,23 @@ import jwt from 'jsonwebtoken';
 export const protect = (req, res, next) => {
   let token;
 
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+  // Read the JWT from the httpOnly cookie
+  if (req.cookies && req.cookies.token) {
     try {
-      // Get token from header: "Bearer <token>"
-      token = req.headers.authorization.split(' ')[1];
+      token = req.cookies.token;
 
       // Verify the token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
-
+      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET || 'your_jwt_access_secret');
       // Attach the user payload from the token to the request object
       req.user = decoded.user;
-
       next();
     } catch (error) {
-      console.error('Token verification failed:', error);
+      // This will catch verification errors (e.g., expired or malformed token)
       return res.status(401).json({ message: 'Not authorized, token failed' });
     }
-  }
-
-  if (!token) {
-    res.status(401).json({ message: 'Not authorized, no token provided' });
+  } else {
+    // If no token is found in the cookies at all
+    return res.status(401).json({ message: 'Not authorized, no token provided' });
   }
 };
 
