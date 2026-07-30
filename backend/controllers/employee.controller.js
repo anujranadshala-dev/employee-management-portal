@@ -56,7 +56,7 @@ export const updateEmployee = async (req, res) => {
       { id: id },
       { $set: updateData }, // Use $set to prevent accidentally overwriting the whole document
       {
-      new: true, // Return the updated document
+      returnDocument: 'after', // Return the updated document
       runValidators: true,
     });
     if (!updatedEmployee) {

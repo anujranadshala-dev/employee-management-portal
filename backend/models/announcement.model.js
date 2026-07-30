@@ -6,6 +6,7 @@ const announcementSchema = new mongoose.Schema({
   content: { type: String, required: true },
   author: { type: String, required: true },
   date: { type: Date, default: Date.now },
+  important: { type: Boolean, default: false },
 }, {
   timestamps: true,
 });

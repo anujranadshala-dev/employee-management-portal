@@ -34,14 +34,14 @@ export const createLeaveRequest = async (req, res) => {
 // @route   PATCH /api/leave/:id/status
 export const updateLeaveRequestStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, actionBy } = req.body;
     if (!['Approved', 'Rejected'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status update' });
     }
     const updatedRequest = await LeaveRequest.findOneAndUpdate(
       { id: req.params.id },
-      { status },
-      { new: true }
+      { status, actionBy },
+      { returnDocument: 'after' } // Use 'returnDocument: 'after'' to return the updated document
     );
     if (!updatedRequest) return res.status(404).json({ message: 'Leave request not found' });
     res.status(200).json(updatedRequest);

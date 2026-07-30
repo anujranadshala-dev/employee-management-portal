@@ -3,17 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { CalendarRange, Plus, Check, X, Clock, Send, Users, CalendarDays, UserCheck, ClipboardList } from 'lucide-react';
-import { submitLeaveRequest, updateLeaveStatus, selectMyLeaveRequests, selectPendingTeamRequests, selectTeammatesOnLeave } from '../store/slices/leaveSlice';
+import { CalendarRange, Plus, Check, X, Clock, Send, UserCheck, ClipboardList, Loader2 } from 'lucide-react';
+import { submitLeaveRequest, updateLeaveStatus, fetchLeaveRequests, selectMyLeaveRequests, selectPendingTeamRequests, selectTeammatesOnLeave } from '../store/slices/leaveSlice';
 import { selectAuth } from '../store/slices/authSlice';
 
 export default function LeaveManagerView() {
   const { user: session } = useSelector(selectAuth);
   const dispatch = useDispatch();
-
   const myRequests = useSelector(selectMyLeaveRequests);
+  const leaveStatus = useSelector(state => state.leave.status);
   const pendingTeamRequests = useSelector(selectPendingTeamRequests);
   const teammatesOnLeave = useSelector(selectTeammatesOnLeave);
 
@@ -21,7 +21,14 @@ export default function LeaveManagerView() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');
-  const [activeTab, setActiveTab] = useState('history');
+  const [activeTab, setActiveTab] = useState('myHistory'); // Renamed for clarity
+
+  useEffect(() => {
+    // Fetch data only if it hasn't been fetched or has failed
+    if (leaveStatus === 'idle' || leaveStatus === 'failed') {
+      dispatch(fetchLeaveRequests());
+    }
+  }, [leaveStatus, dispatch]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,12 +39,20 @@ export default function LeaveManagerView() {
     dispatch(submitLeaveRequest({ leaveType, startDate, endDate, reason }));
     setStartDate('');
     setEndDate('');
-    setReason('');
-    setActiveTab('history'); // Switch back to history view after submission
+    setReason(''); // Clear reason after submission
+    setActiveTab('myHistory'); // Switch back to history view after submission
   };
 
   const handleUpdateStatus = (id, status) => {
-    dispatch(updateLeaveStatus({ id, status }));
+    // The user object is available as `session` in this component's scope.
+    const actionBy = {
+      id: session.id,
+      name: session.name,
+      department: session.department,
+      isAdmin: session.isAdmin,
+      isDepartmentManager: session.isDepartmentManager,
+    };
+    dispatch(updateLeaveStatus({ id, status, actionBy }));
   };
 
   const StatusBadge = ({ status }) => {
@@ -53,6 +68,15 @@ export default function LeaveManagerView() {
     );
   };
 
+  const isLoading = leaveStatus === 'loading' || leaveStatus === 'idle';
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-96">
+        <Loader2 className="h-8 w-8 text-slate-400 animate-spin" />
+      </div>
+    );
+  }
   return (
     <div className="space-y-6" id="leave-manager-root">
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
@@ -68,26 +92,26 @@ export default function LeaveManagerView() {
       {/* Sub-navigation tabs */}
       <div className="flex border-b border-slate-200">
         <button
-          onClick={() => setActiveTab('history')}
+          onClick={() => setActiveTab('myHistory')}
           className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
-            activeTab === 'history'
+            activeTab === 'myHistory'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
           }`}
         >
           <Clock className="h-4 w-4" />
-          My Leave History
+          My Requests
         </button>
         <button
-          onClick={() => setActiveTab('team')}
+          onClick={() => setActiveTab('teamRequests')}
           className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
-            activeTab === 'team'
+            activeTab === 'teamRequests'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
           }`}
         >
           <UserCheck className="h-4 w-4" />
-          Teammates on Leave
+          Team Requests
         </button>
         <button
           onClick={() => setActiveTab('apply')}
@@ -103,8 +127,8 @@ export default function LeaveManagerView() {
       </div>
 
       {/* Tab Content */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-        {activeTab === 'history' && (
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm min-h-[400px]"> {/* Added min-h for consistent layout */}
+        {activeTab === 'myHistory' && (
           <div>
             <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2 mb-4">
               <Clock className="h-4 w-4 text-slate-500" />
@@ -118,6 +142,19 @@ export default function LeaveManagerView() {
                     <div className="text-xs text-slate-500 font-mono">
                       {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
                     </div>
+                    {req.reason && (
+                      <p className="text-xs text-slate-600 mt-2 pt-2 border-t border-slate-200">{req.reason}</p>
+                    )}
+                    {req.status !== 'Pending' && req.actionBy && (
+                      <div className="text-[10px] text-slate-400 mt-2 pt-2 border-t border-slate-200 font-semibold">
+                        Action by: {req.actionBy.name} (
+                        {req.actionBy.isAdmin ? 'Admin' : ''}
+                        {req.actionBy.isAdmin && req.actionBy.isDepartmentManager ? ', ' : ''}
+                        {!req.actionBy.isAdmin && req.actionBy.isDepartmentManager ? 'Department Manager' : ''}
+                        {(!req.actionBy.isAdmin && !req.actionBy.isDepartmentManager) ? 'Employee' : ''}
+                        , {req.actionBy.department})
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-3">
                     <StatusBadge status={req.status} />
@@ -128,26 +165,72 @@ export default function LeaveManagerView() {
           </div>
         )}
 
-        {activeTab === 'team' && (
+        {activeTab === 'teamRequests' && (
           <div>
-            <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2 mb-4">
-              <UserCheck className="h-4 w-4 text-slate-500" />
-              Teammates on Leave (Approved)
-            </h3>
-            <div className="space-y-3 overflow-y-auto max-h-[60vh]">
-              {teammatesOnLeave.length > 0 ? teammatesOnLeave.map(req => (
-                <div key={req.id} className="p-4 rounded-lg border border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div>
-                    <div className="font-bold text-slate-800">{req.employeeName}</div>
-                    <div className="text-xs text-slate-500 font-mono">
-                      {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
+            {(session.isAdmin || session.isDepartmentManager) && (
+              <div className="mb-6">
+                <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2 mb-4">
+                  <ClipboardList className="h-4 w-4 text-slate-500" />
+                  Pending Team Leave Requests
+                </h3>
+                <div className="space-y-3 overflow-y-auto max-h-[30vh]"> {/* Reduced max-h to accommodate other sections */}
+                  {pendingTeamRequests.length > 0 ? pendingTeamRequests.map(req => (
+                    <div key={req.id} className="p-4 rounded-lg border border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div>
+                        <div className="font-bold text-slate-800">{req.leaveType}</div>
+                        <div className="text-xs text-slate-500 font-medium">{req.employeeName} ({req.department})</div>
+                        <div className="text-xs text-slate-500 font-mono">
+                          <span className="font-semibold">{req?.employeeName} &middot; </span>
+                          {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
+                        </div>
+                        {req.reason && (
+                          <p className="text-xs text-slate-600 mt-2 pt-2 border-t border-slate-200">{req.reason}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <StatusBadge status={req.status} />
+                        <div className="flex gap-2">
+                          <button onClick={() => handleUpdateStatus(req.id, 'Approved')} className="p-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-full" title="Approve">
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button onClick={() => handleUpdateStatus(req.id, 'Rejected')} className="p-2 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-full" title="Reject">
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="font-semibold text-xs text-slate-600">{req.leaveType}</div>
+                  )) : (
+                    <p className="text-center py-8 text-slate-400 text-xs">No pending leave requests from your team.</p>
+                  )}
                 </div>
-              )) : (
-                <p className="text-center py-8 text-slate-400 text-xs">No teammates have approved upcoming leave.</p>
-              )}
+              </div>
+            )}
+
+            {/* Teammates on Leave (Approved) - still useful to see who is out */}
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2 mb-4">
+                <UserCheck className="h-4 w-4 text-slate-500" />
+                Teammates Currently on Leave
+              </h3>
+              <div className="space-y-3 overflow-y-auto max-h-[30vh]">
+                {teammatesOnLeave.length > 0 ? teammatesOnLeave.map(req => (
+                  <div key={req.id} className="p-4 rounded-lg border border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <div className="font-bold text-slate-800">{req.employeeName}</div>
+                      <div className="text-xs text-slate-500 font-medium">{req.department}</div>
+                      <div className="text-xs text-slate-500 font-mono">
+                        {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
+                      </div>
+                      {req.reason && (
+                        <p className="text-xs text-slate-600 mt-2 pt-2 border-t border-slate-200">{req.reason}</p>
+                      )}
+                    </div>
+                    <div className="font-semibold text-xs text-slate-600">{req.leaveType}</div>
+                  </div>
+                )) : (
+                  <p className="text-center py-8 text-slate-400 text-xs">No teammates have approved upcoming leave.</p>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -212,40 +295,6 @@ export default function LeaveManagerView() {
           </div>
         )}
       </div>
-
-      {/* Actionable Team Requests (for Managers/Admins) */}
-      {(session.isAdmin || session.isDepartmentManager) && pendingTeamRequests.length > 0 && (
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-            <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2">
-              <ClipboardList className="h-4 w-4 text-slate-500" />
-              Team Leave Requests for Approval
-            </h3>
-            <div className="space-y-3 overflow-y-auto max-h-[60vh]">
-              {pendingTeamRequests.map(req => (
-                <div key={req.id} className="p-4 rounded-lg border border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div>
-                    <div className="font-bold text-slate-800">{req.leaveType}</div>
-                    <div className="text-xs text-slate-500 font-mono">
-                      <span className="font-semibold">{req?.employeeName} &middot; </span>
-                      {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <StatusBadge status={req.status} />
-                    <div className="flex gap-2">
-                      <button onClick={() => handleUpdateStatus(req.id, 'Approved')} className="p-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-full" title="Approve">
-                        <Check className="h-4 w-4" />
-                      </button>
-                      <button onClick={() => handleUpdateStatus(req.id, 'Rejected')} className="p-2 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-full" title="Reject">
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
     </div>
   );
 }

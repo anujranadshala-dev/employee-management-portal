@@ -15,6 +15,7 @@ export const login = async (req, res) => {
     if (user && (await user.matchPassword(password))) {
       const userPayload = {
         id: user._id,
+        employeeId: user.id, // Add the custom employee ID to the payload
         name: user.firstName + ' ' + user.lastName,
         role: user.role,
         isAdmin: user.isAdmin,
@@ -112,6 +113,7 @@ export const refreshToken = async (req, res) => {
     // If valid, issue a new access token
     const userPayload = {
       id: user._id,
+      employeeId: user.id, // Also add it here for token refresh
       name: user.firstName + ' ' + user.lastName,
       role: user.role,
       isAdmin: user.isAdmin,

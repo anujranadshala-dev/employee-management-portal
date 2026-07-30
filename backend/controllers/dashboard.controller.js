@@ -3,67 +3,82 @@ import Leave from '../models/leave.model.js';
 import Announcement from '../models/announcement.model.js';
 
 /**
- * @desc    Get all statistics for the main dashboard
+ * @desc    Get aggregated statistics for the dashboard
  * @route   GET /api/dashboard/stats
  * @access  Private
  */
 export const getDashboardStats = async (req, res) => {
   try {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Set to the beginning of the day
-    const nextWeek = new Date();
-    nextWeek.setDate(today.getDate() + 7);
-    const last30Days = new Date();
-    last30Days.setDate(today.getDate() - 30);
+    today.setHours(0, 0, 0, 0);
 
-    // Run all database queries in parallel for better performance
-    const [
-      totalEmployees,
-      onLeave,
-      upcomingLeave,
-      recentHires,
-      latestAnnouncements,
-      departmentCounts,
-      pendingApprovals,
-    ] = await Promise.all([
-      Employee.countDocuments({ status: 'Active' }),
-      Employee.countDocuments({ status: 'On Leave' }),
-      Leave.find({
-        status: 'Approved',
-        endDate: { $gte: today }, // Show leave that is currently active or upcoming
-      })
-      .populate('employee', 'firstName lastName')
-      .sort({ startDate: 'asc' })
-      .limit(5),
-      Employee.find({ startDate: { $gte: last30Days } })
-      .sort({ startDate: 'desc' })
-      .limit(5),
-      Announcement.find({}).sort({ createdAt: 'desc' }).limit(3),
-      Employee.aggregate([
-        { $match: { status: 'Active' } },
-        { $group: { _id: '$department', count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-        { $project: { name: '$_id', count: 1, _id: 0 } },
-      ]),
-      // New stat: Count pending leave requests for managers/admins
-      (req.user.isDepartmentManager || req.user.isAdmin)
-        ? Leave.countDocuments({ status: 'Pending' })
-        : Promise.resolve(0),
+    // --- Employee Stats ---
+    const totalEmployees = await Employee.countDocuments({ status: { $ne: 'Terminated' } });
+    const onLeave = await Leave.countDocuments({
+      status: 'Approved',
+      startDate: { $lte: today },
+      endDate: { $gte: today },
+    });
+
+    // --- Recent Hires (last 30 days) ---
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const recentHires = await Employee.find({
+      joinDate: { $gte: thirtyDaysAgo },
+      status: { $ne: 'Terminated' }
+    }).sort({ joinDate: -1 }).limit(5);
+
+    // --- Department Headcount ---
+    const departmentCounts = await Employee.aggregate([
+      { $match: { status: { $ne: 'Terminated' } } },
+      { $group: { _id: '$department', count: { $sum: 1 } } },
+      { $project: { _id: 0, name: '$_id', count: '$count' } },
+      { $sort: { name: 1 } }
     ]);
 
+    // --- Department Salary Expense ---
+    const departmentSalaries = await Employee.aggregate([
+      { $match: { status: { $ne: 'Terminated' } } },
+      {
+        $group: {
+          _id: '$department',
+          salary: { $sum: '$salary' }
+        }
+      },
+      { $project: { _id: 0, name: '$_id', salary: '$salary' } },
+      { $sort: { name: 1 } }
+    ]);
+
+    // --- Upcoming Leave (next 7 days) ---
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(today.getDate() + 7);
+    const upcomingLeave = await Leave.find({
+      startDate: { $lte: sevenDaysFromNow },
+      endDate: { $gte: today },
+      status: 'Approved'
+    }).populate('employee', 'firstName lastName').sort({ startDate: 1 }).limit(5);
+
+    // --- Latest Announcements ---
+    const latestAnnouncements = await Announcement.find().sort({ createdAt: -1 }).limit(5);
+
+    // --- Top Performers (Performance Score of 5) ---
+    const topPerformers = await Employee.find({
+      performanceScore: 5,
+      status: { $ne: 'Terminated' }
+    }).select('id firstName lastName role').limit(5);
 
     res.status(200).json({
       totalEmployees,
       onLeave,
-      upcomingLeave,
       recentHires,
-      latestAnnouncements,
       departmentCounts,
-      pendingApprovals,
+      departmentSalaries, // Added this to the response
+      upcomingLeave,
+      latestAnnouncements,
+      topPerformers,
     });
-
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error while fetching dashboard statistics.' });
   }
 };

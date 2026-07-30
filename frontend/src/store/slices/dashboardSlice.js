@@ -23,6 +23,8 @@ const initialState = {
     recentHires: [], // array of employee objects
     latestAnnouncements: [], // array of announcement objects
     departmentCounts: [], // array for chart
+    departmentSalaries: [], // array for salary chart
+    topPerformers: [], // array of employee objects
   },
   status: 'idle',
   error: null,

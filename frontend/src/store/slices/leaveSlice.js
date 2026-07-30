@@ -1,6 +1,5 @@
 import { createSlice, createEntityAdapter, createSelector, createAsyncThunk } from '@reduxjs/toolkit';
 import { api } from '../../utils/api';
-import { selectEmployeeEntities } from './employeeSlice';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -20,11 +19,11 @@ export const fetchLeaveRequests = createAsyncThunk(
 // Async thunk for updating leave request status
 export const updateLeaveStatus = createAsyncThunk(
   'leave/updateStatus',
-  async ({ id, status }, { rejectWithValue }) => {
+  async ({ id, status, actionBy }, { rejectWithValue }) => {
     try {
       const response = await api(`${API_BASE_URL}/leave/${id}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, actionBy }),
       });
       return await response.json();
     } catch (error) {
@@ -36,11 +35,19 @@ export const updateLeaveStatus = createAsyncThunk(
 // Async thunk for submitting a new leave request
 export const submitLeaveRequest = createAsyncThunk(
   'leave/submitRequest',
-  async (requestData, { rejectWithValue }) => {
+  async (requestData, { getState, rejectWithValue }) => {
     try {
+      const { auth } = getState();
+      if (!auth.user || !auth.user.department) {
+        return rejectWithValue('User department not found. Cannot submit request.');
+      }
+
+      // Automatically add the user's department to the request payload
+      const completeRequestData = { ...requestData, department: auth.user.department };
+
       const response = await api(`${API_BASE_URL}/leave`, {
         method: 'POST',
-        body: JSON.stringify(requestData),
+        body: JSON.stringify(completeRequestData),
       });
       return await response.json();
     } catch (error) {
@@ -97,7 +104,7 @@ export const selectLeaveData = createSelector(
   (requests, session) => {
     if (!session) return { myRequests: [], teamRequests: [] };
 
-    const myRequests = requests.filter(r => r.employeeId === session.id);
+    const myRequests = requests.filter(r => r.employeeId === session.employeeId);
 
     return { myRequests };
   }
@@ -108,22 +115,20 @@ export const selectMyLeaveRequests = createSelector(
   [selectAllLeaveRequests, (state) => state.auth.user],
   (requests, session) => {
     if (!session) return [];
-    return requests.filter(r => r.employeeId === session.id);
+    return requests.filter(r => r.employeeId === session.employeeId);
   }
 );
 
 // Selects pending requests that the current user needs to action.
 export const selectPendingTeamRequests = createSelector(
-  [selectAllLeaveRequests, selectEmployeeEntities, (state) => state.auth.user],
-  (allRequests, employeeEntities, session) => {
+  [selectAllLeaveRequests, (state) => state.auth.user],
+  (allRequests, session) => {
     if (!session || (!session.isAdmin && !session.isDepartmentManager)) {
       return [];
     }
 
     return allRequests.filter(req => {
       if (req.status !== 'Pending') return false;
-      const employee = employeeEntities[req.employeeId];
-      if (!employee) return false;
 
       // Admins can see ALL pending requests.
       if (session.isAdmin) {
@@ -131,7 +136,7 @@ export const selectPendingTeamRequests = createSelector(
       }
 
       // Department Managers see pending requests from their own department (excluding other managers).
-      if (session.isDepartmentManager && employee.department === session.department && !employee.isDepartmentManager && req.employeeId !== session.id) {
+      if (session.isDepartmentManager && req.department === session.department && req.employeeId !== session.employeeId) {
         return true;
       }
 
@@ -142,18 +147,16 @@ export const selectPendingTeamRequests = createSelector(
 
 // Selector to get approved and upcoming leave for the user's department colleagues
 export const selectTeammatesOnLeave = createSelector(
-  [selectAllLeaveRequests, selectEmployeeEntities, (state) => state.auth.user],
-  (allRequests, employeeEntities, session) => {
+  [selectAllLeaveRequests, (state) => state.auth.user],
+  (allRequests, session) => {
     if (!session || !allRequests.length) return [];
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Consider leave from the start of today
 
     return allRequests.filter(req => {
-      const employee = employeeEntities[req.employeeId];
       return (
-        employee &&
-        employee.department === session.department && // Teammate is in the same department
-        req.employeeId !== session.id && // Not the user's own leave
+        req.department === session.department && // Teammate is in the same department
+        req.employeeId !== session.employeeId && // Not the user's own leave
         req.status === 'Approved' && // Only show approved leave
         new Date(req.endDate) >= today // The leave period is current or in the future
       );
